@@ -77,7 +77,7 @@ STATIC VOID __depereated_online_cb(IN TRANSFER_ONLINE_E status)
 }
 
 /* Callback functions for transporting events */
-STATIC VOID __TUYA_APP_p2p_event_cb(IN CONST TRANSFER_EVENT_E event, IN CONST PVOID_T args)
+STATIC INT_T __TUYA_APP_p2p_event_cb(IN CONST TRANSFER_EVENT_E event, IN CONST PVOID_T args)
 {
     PR_DEBUG("p2p rev event cb=[%d] ", event);
     switch (event)
@@ -85,13 +85,13 @@ STATIC VOID __TUYA_APP_p2p_event_cb(IN CONST TRANSFER_EVENT_E event, IN CONST PV
         case TRANS_LIVE_VIDEO_START:
         {
             C2C_TRANS_CTRL_VIDEO_START * parm = (C2C_TRANS_CTRL_VIDEO_START *)args;
-            PR_DEBUG("chn[%u] video start type:%d",parm->channel,parm->type);
+            PR_DEBUG("chn[%u] type[%d]video start",parm->channel,parm->type);
             break;
         }
         case TRANS_LIVE_VIDEO_STOP:
         {
             C2C_TRANS_CTRL_VIDEO_STOP * parm = (C2C_TRANS_CTRL_VIDEO_STOP *)args;
-            PR_DEBUG("chn[%u] video stop type:%d",parm->channel,parm->type);
+            PR_DEBUG("chn[%u] type[%d] video stop",parm->channel,parm->type);
             break;
         }
         case TRANS_LIVE_AUDIO_START:
@@ -108,15 +108,21 @@ STATIC VOID __TUYA_APP_p2p_event_cb(IN CONST TRANSFER_EVENT_E event, IN CONST PV
         }
         case TRANS_SPEAKER_START:
         {
-            PR_DEBUG("enbale audio speaker");
+            TRANSFER_SOURCE_TYPE_E type = *(TRANSFER_SOURCE_TYPE_E *)args;
+            PR_DEBUG("enbale audio speaker by %d",type);
             TUYA_APP_Enable_Speaker_CB(TRUE);
-            break;
+            TRANSFER_EVENT_RETURN_E ret = TRANS_EVENT_SUCCESS;
+            //if start failed, return TRANS_EVENT_SPEAKER_ISUSED/TRANS_EVENT_SPEAKER_REPSTART
+            return ret;
         }
         case TRANS_SPEAKER_STOP:
         {
-            PR_DEBUG("disable audio speaker");
+            TRANSFER_SOURCE_TYPE_E type = *(TRANSFER_SOURCE_TYPE_E *)args;
+            PR_DEBUG("disable audio speaker by %d",type);
             TUYA_APP_Enable_Speaker_CB(FALSE);
-            break;
+            TRANSFER_EVENT_RETURN_E ret = TRANS_EVENT_SUCCESS;
+            //if start failed, return TRANS_EVENT_SPEAKER_STOPFAILED
+            return ret;
         }
         case TRANS_LIVE_LOAD_ADJUST:
         {
@@ -355,6 +361,8 @@ STATIC VOID __TUYA_APP_p2p_event_cb(IN CONST TRANSFER_EVENT_E event, IN CONST PV
         default:
             break;
     }
+
+    return 0;
 }
 
 STATIC VOID __TUYA_APP_rev_audio_cb(IN CONST TRANSFER_AUDIO_FRAME_S *p_audio_frame, IN CONST UINT_T frame_no)
