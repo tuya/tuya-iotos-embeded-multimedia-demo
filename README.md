@@ -1,43 +1,45 @@
-English | [简体中文](./README_zh-CN.md)
+English | [中文版](./README_zh-CN.md)
 
 # tuya-iotos-embeded-multimedia-demo
-demo codes for Tuya multimedia SDK applications
+This demo provides the code for Tuya multimedia SDK applications.
 
-## Introduction
-Application demo codes and resources are supplied to develop kinds of devices, based on **[Tuya multimedia sdk](https://github.com/tuya/tuya-iotos-embeded-sdk-multimedia)**, such as IP camera, NVR, DVR, doorbell, lowpower doorbell, floodlight etc. 
+## Overview
+Application demo code and resources are supplied to develop different types of devices based on the **[Tuya Embedded SDK for Multimedia Devices](https://github.com/tuya/tuya-iotos-embeded-sdk-multimedia)**. For example, the following devices are supported: IP cameras, network video recorders (NVRs), digital video recorders (DVRs), video doorbells, low-power doorbells, and floodlights. 
 
-## Get Started
+## Get started
 
-* Prepare developing environment
+1. Prepare the development environment.
 
-Ubuntu 16.04.4 LTS is suggested(not limited, Linux is required).<br>
+   Ubuntu 16.04.4 LTS is suggested (not limited, Linux is required).
 Install Tuya Smart on your mobile phone and register.
 
-* Build a quick demo of IPC
+2. Build a quick demo of IP cameras (IPCs).
 
-Download [SDK for Ubuntu x64](https://github.com/tuya/tuya-iotos-embeded-sdk-multimedia/), and decompression to demo_for_ipc\sdk\. <br>
+   Download [SDK for Ubuntu x64](https://github.com/tuya/tuya-iotos-embeded-sdk-multimedia/), and decompress the SDK to demo_for_ipc\sdk\. <br>
 ```
 # cd demo_for_ipc
 # make APP_NAME=name
 ```
 
-* Run a virtual device
+3. Run a virtual device.
 
-Copy demo resources to demo_for_ipc\output
+Copy demo resources to demo_for_ipc\output.
+
 ```
 # cp demo_resource demo_for_ipc\output\resources -r
 ```
-Use Tuya Smart APP to get a TOKEN for pairing.([What is TOKEN?](https://github.com/tuya/tuya-iotos-embeded-multimedia-demo/wiki))<br>
+
+Use the Tuya Smart app to get a token and pair the device. ([What is TOKEN?](https://github.com/tuya/tuya-iotos-embeded-multimedia-demo/wiki))
 
 
-Run with new PID/UUID/AUTHKEY.([What is PID/UUID/AUTHKEY?](https://github.com/tuya/tuya-iotos-embeded-multimedia-demo/wiki))<br>
+Run the device with new PID/UUID/AUTHKEY. ([What is PID/UUID/AUTHKEY?](https://github.com/tuya/tuya-iotos-embeded-multimedia-demo/wiki))<br>
 ```
 # cd output
 # ./tuya_ipc_demo -m 2 -p [PID] -u [UUID] -a [AUTHKEY] -r [./] -t "[TOKEN]"
 ```
-Check on Tuya Smart APP, a new IPC is added. Click and view a demo video.
+Open the Tuya Smart app to check wehther an IPC is added. You can tap and view a demo video from the IPC.
 
 ## Support
-Tuya Developer Center: https://developer.tuya.com/en/ <br>
+Tuya IoT Developer Platform: https://developer.tuya.com/en/ <br>
 Tuya Smart Help Center: https://support.tuya.com/en/help <br>
-Technical Support Council: https://iot.tuya.com/council/ 
+Technical Support Console: https://service.console.tuya.com/
