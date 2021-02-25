@@ -29,6 +29,9 @@ IPC_MGR_INFO_S s_mgr_info = {0};
 STATIC INT_T s_mqtt_status = 0;
 
 CHAR_T s_raw_path[128] = {0};
+CHAR_T s_pid[64] = {0};
+CHAR_T s_uuid[64] = {0};
+CHAR_T s_authkey[64] = {0};
 
 STATIC VOID __IPC_APP_Get_Net_Status_cb(IN CONST BYTE_T stat)
 {
@@ -63,9 +66,9 @@ OPERATE_RET IPC_APP_Init_SDK(WIFI_INIT_MODE_E init_mode, CHAR_T *p_token)
     strcpy(s_mgr_info.storage_path, IPC_APP_STORAGE_PATH);
     strcpy(s_mgr_info.upgrade_file_path, IPC_APP_UPGRADE_FILE);
     strcpy(s_mgr_info.sd_base_path, IPC_APP_SD_BASE_PATH);
-    strcpy(s_mgr_info.product_key, IPC_APP_PID);
-    strcpy(s_mgr_info.uuid, IPC_APP_UUID);
-    strcpy(s_mgr_info.auth_key, IPC_APP_AUTHKEY);
+    strcpy(s_mgr_info.product_key, s_pid);
+    strcpy(s_mgr_info.uuid, s_uuid);
+    strcpy(s_mgr_info.auth_key, s_authkey);
     strcpy(s_mgr_info.dev_sw_version, IPC_APP_VERSION);
     s_mgr_info.max_p2p_user = 5; //TUYA P2P supports 5 users at the same time, including live preview and playback
     PR_DEBUG("Init Value.storage_path %s", s_mgr_info.storage_path);
@@ -136,6 +139,9 @@ int main(int argc, char *argv[])
 #endif
 
     strcpy(s_raw_path, "/tmp"); //Path where demo resources locates
+    strcpy(s_pid, IPC_APP_PID);
+    strcpy(s_uuid, IPC_APP_UUID);
+    strcpy(s_authkey, IPC_APP_AUTHKEY);
 #ifdef __HuaweiLite__
     if(argc != 2)
     {
@@ -146,7 +152,7 @@ int main(int argc, char *argv[])
                             //developers need to make sure that devices are connected to the Internet. 。
     strcpy(token, argv[1]); //Token field values scanned from APP QR-codes or broadcast packets
 #else
-    while((res = getopt(argc, argv, "?m:t:s:r:h")) != -1) 
+    while((res = getopt(argc, argv, "?m:t:s:r:h:p:u:a:")) != -1) 
     {
         switch(res) {
         case 'm':
@@ -159,6 +165,18 @@ int main(int argc, char *argv[])
 
         case 'r':
             strcpy(s_raw_path, optarg);
+            break;
+
+        case 'p':
+            strcpy(s_pid, optarg);
+            break;
+
+        case 'u':
+            strcpy(s_uuid, optarg);
+            break;
+
+        case 'a':
+            strcpy(s_authkey, optarg);
             break;
 
         case 'h':

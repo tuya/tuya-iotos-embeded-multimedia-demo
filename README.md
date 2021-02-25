@@ -23,10 +23,10 @@ Install Tuya Smart on your mobile phone and register.
 
 3. Run a virtual device.
 
-Copy demo resources to demo_for_ipc\output.
 
+Copy demo resources to demo_for_ipc/output
 ```
-# cp demo_resource demo_for_ipc\output\resources -r
+# cp demo_resource demo_for_ipc/output/resource -r
 ```
 
 Use the Tuya Smart app to get a token and pair the device. ([What is TOKEN?](https://github.com/tuya/tuya-iotos-embeded-multimedia-demo/wiki))
@@ -35,7 +35,7 @@ Use the Tuya Smart app to get a token and pair the device. ([What is TOKEN?](htt
 Run the device with new PID/UUID/AUTHKEY. ([What is PID/UUID/AUTHKEY?](https://github.com/tuya/tuya-iotos-embeded-multimedia-demo/wiki))<br>
 ```
 # cd output
-# ./tuya_ipc_demo -m 2 -p [PID] -u [UUID] -a [AUTHKEY] -r [./] -t "[TOKEN]"
+# ./tuya_ipc_demo -m 2 -p [PID] -u [UUID] -a [AUTHKEY] -r "./" -t "[TOKEN]"
 ```
 Open the Tuya Smart app to check whether an IPC is added. You can tap the IPC to view a demo video.
 
