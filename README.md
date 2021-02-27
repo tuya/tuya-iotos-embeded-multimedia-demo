@@ -4,7 +4,7 @@ English | [中文版](./README_zh-CN.md)
 This demo provides the code for Tuya multimedia SDK applications.
 
 ## Overview
-Application demo code and resources are supplied to develop different types of devices based on the **[Tuya Embedded SDK for Multimedia Devices](https://github.com/tuya/tuya-iotos-embeded-sdk-multimedia)**. For example, the following devices are supported: IP cameras, network video recorders (NVRs), digital video recorders (DVRs), video doorbells, low-power doorbells, and floodlights. 
+Application demo code and resources are supplied to develop different types of devices based on the **[Tuya Embedded SDK for Multimedia Devices](https://github.com/tuya/tuya-iotos-embeded-sdk-multimedia)**. For example, the following devices are supported: IP cameras (IPCs), network video recorders (NVRs), digital video recorders (DVRs), video doorbells, low-power doorbells, and floodlights. 
 
 ## Get started
 
@@ -37,7 +37,7 @@ Run the device with new PID/UUID/AUTHKEY. ([What is PID/UUID/AUTHKEY?](https://g
 # cd output
 # ./tuya_ipc_demo -m 2 -p [PID] -u [UUID] -a [AUTHKEY] -r [./] -t "[TOKEN]"
 ```
-Open the Tuya Smart app to check wehther an IPC is added. You can tap and view a demo video from the IPC.
+Open the Tuya Smart app to check whether an IPC is added. You can tap the IPC to view a demo video.
 
 ## Support
 Tuya IoT Developer Platform: https://developer.tuya.com/en/ <br>
