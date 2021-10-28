@@ -9,7 +9,7 @@
 #include "tuya_ipc_cloud_storage.h"
 #include "tuya_ipc_stream_storage.h"
 #include "tuya_ipc_api.h"
-#include "event.h"
+#include "tuya_ipc_event.h"
 
 
 //AI detect should enable SUPPORT_AI_DETECT

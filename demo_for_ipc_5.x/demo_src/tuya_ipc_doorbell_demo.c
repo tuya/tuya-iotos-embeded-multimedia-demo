@@ -16,7 +16,7 @@
 
 #include "tuya_ipc_api.h"
 #include "tuya_ipc_video_msg.h"
-#include "event.h"
+#include "tuya_ipc_event.h"
 
 
 #define DOORBELL_ALARM_DURATION 25*1000          //arlarm time
