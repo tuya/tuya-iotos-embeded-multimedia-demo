@@ -228,7 +228,8 @@ OPERATE_RET TUYA_APP_Init_Stream_Storage(IN CONST CHAR_T *p_sd_base_path)
     extern IPC_MEDIA_INFO_S s_media_info ;
     memset(&stg_var, 0, SIZEOF(TUYA_IPC_STORAGE_VAR_S));
     memcpy(stg_var.base_path, p_sd_base_path, SS_BASE_PATH_LEN);
-    stg_var.media_setting = s_media_info;
+    //stg_var.media_setting = s_media_info;
+    memcpy(&stg_var.media_setting, &s_media_info, SIZEOF(IPC_MEDIA_INFO_S));
     stg_var.max_event_per_day = 10;
     stg_var.sd_status_changed_cb = tuya_ipc_sd_status_upload;
 

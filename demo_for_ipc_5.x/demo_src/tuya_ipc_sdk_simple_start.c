@@ -268,7 +268,8 @@ STATIC VOID tuya_ipc_sdk_mqtt_online_proc(PVOID_T arg)
         TUYA_IPC_STORAGE_VAR_S stg_var;
         memset(&stg_var, 0, SIZEOF(TUYA_IPC_STORAGE_VAR_S));
         memcpy(stg_var.base_path, s_ipc_sdk_run_handler.sdk_run_info.local_storage_info.storage_path, SS_BASE_PATH_LEN);
-        stg_var.media_setting = s_ipc_sdk_run_handler.sdk_run_info.media_info.media_info;
+        //stg_var.media_setting = s_ipc_sdk_run_handler.sdk_run_info.media_info.media_info;
+        memcpy(&stg_var.media_setting, &s_ipc_sdk_run_handler.sdk_run_info.media_info.media_info, SIZEOF(IPC_MEDIA_INFO_S));
         stg_var.max_event_per_day = s_ipc_sdk_run_handler.sdk_run_info.local_storage_info.max_event_num_per_day;
         stg_var.skills = s_ipc_sdk_run_handler.sdk_run_info.local_storage_info.skills;
         stg_var.sd_status_changed_cb = tuya_ipc_sdk_sd_status_cb;
