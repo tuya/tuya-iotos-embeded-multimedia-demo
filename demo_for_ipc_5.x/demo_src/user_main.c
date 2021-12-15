@@ -150,7 +150,7 @@ OPERATE_RET TUYA_IPC_SDK_START(WIFI_INIT_MODE_E connect_mode, CHAR_T *p_token)
 	strcpy(ipc_sdk_run_var.iot_info.cfg_storage_path,IPC_APP_STORAGE_PATH);
 	
 	//normal device
-	ipc_sdk_run_var.iot_info.dev_type= NORMAL_POWER_DEV
+	ipc_sdk_run_var.iot_info.dev_type= NORMAL_POWER_DEV;
 	//if needed, change to low power  device
 	//ipc_sdk_run_var.iot_info.dev_type= LOW_POWER_DEV;
 
