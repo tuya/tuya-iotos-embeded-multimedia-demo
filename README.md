@@ -23,7 +23,6 @@ Install Tuya Smart on your mobile phone and register.
 
 3. Run a virtual device.
 
-
 Copy demo resources to demo_for_ipc/output
 ```
 # cp demo_resource demo_for_ipc/output/resource -r

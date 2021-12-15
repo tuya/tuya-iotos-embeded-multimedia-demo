@@ -88,7 +88,7 @@ VOID IPC_APP_Set_Media_Info(VOID)
 void *thread_live_audio(void *arg)
 {
     char fullpath[128] = {0};
-    sprintf(fullpath, "%s/resource/media/demo_audio.raw", s_raw_path);
+    sprintf(fullpath, "%s/media/demo_audio.raw", s_raw_path);
 
     FILE *aFp = fopen(fullpath, "rb");
     if(aFp == NULL)
@@ -184,7 +184,7 @@ void *thread_live_video(void *arg)
     unsigned int offset=0;
     unsigned int IsKeyFrame=0;
     unsigned char *pVideoBuf = NULL;
-    sprintf(raw_fullpath, "%s/resource/media/demo_video.264", s_raw_path);
+    sprintf(raw_fullpath, "%s/media/demo_video.264", s_raw_path);
 
     PR_DEBUG("start live video using %s",raw_fullpath);
 

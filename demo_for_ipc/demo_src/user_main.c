@@ -15,8 +15,8 @@
 #include "tuya_iot_config.h"
 
 
-#define IPC_APP_STORAGE_PATH    "/tmp/"   //Path to save tuya sdk DB files, should be readable, writeable and storable
-#define IPC_APP_UPGRADE_FILE    "/tmp/upgrade.file" //File with path to download file during OTA
+#define IPC_APP_STORAGE_PATH    "./"   //Path to save tuya sdk DB files, should be readable, writeable and storable
+#define IPC_APP_UPGRADE_FILE    "./upgrade.file" //File with path to download file during OTA
 #define IPC_APP_SD_BASE_PATH    "/mnt/sdcard/"      //SD card mount directory
 #define IPC_APP_PID             "gpkguYNp7yI4k413"  //Product ID of TUYA device, this is for demo only.
                                                      //Contact tuya PM/BD for official pid.
@@ -138,7 +138,7 @@ int main(int argc, char *argv[])
     mode = WIFI_INIT_NULL;
 #endif
 
-    strcpy(s_raw_path, "/tmp"); //Path where demo resources locates
+    strcpy(s_raw_path, "../../demo_resource"); //Path where demo resources locates
     strcpy(s_pid, IPC_APP_PID);
     strcpy(s_uuid, IPC_APP_UUID);
     strcpy(s_authkey, IPC_APP_AUTHKEY);
@@ -289,7 +289,7 @@ int main(int argc, char *argv[])
         {
             //Using demo file for simulation, should be replaced by real snapshot when events happen.
             char snapfile[64];
-            snprintf(snapfile,64,"%s/resource/media/demo_snapshot.jpg",s_raw_path);
+            snprintf(snapfile,64,"%s/media/demo_snapshot.jpg",s_raw_path);
             FILE*fp = fopen(snapfile,"r+");
             if(NULL == fp)
             {
