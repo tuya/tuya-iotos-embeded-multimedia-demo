@@ -156,3 +156,14 @@ OPERATE_RET tuya_adapter_wired_set_mac(IN CONST NW_MAC_S *mac)
     return OPRT_OK;
 }
 
+
+OPERATE_RET tuya_adapter_wired_get_nw_stat(GW_BASE_NW_STAT_T *stat)
+{
+	
+	return OPRT_OK;
+}
+
+OPERATE_RET tuya_adapter_wired_if_connect_internet(BOOL_T *status)
+{
+	return OPRT_OK;
+}

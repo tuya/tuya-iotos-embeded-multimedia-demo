@@ -148,8 +148,11 @@ OPERATE_RET TUYA_IPC_SDK_START(WIFI_INIT_MODE_E connect_mode, CHAR_T *p_token)
 	strcpy(ipc_sdk_run_var.iot_info.auth_key,s_ipc_authkey);
 	strcpy(ipc_sdk_run_var.iot_info.dev_sw_version,IPC_APP_VERSION);
 	strcpy(ipc_sdk_run_var.iot_info.cfg_storage_path,IPC_APP_STORAGE_PATH);
-	//low power  device
-	ipc_sdk_run_var.iot_info.dev_type= LOW_POWER_DEV;
+	
+	//normal device
+	ipc_sdk_run_var.iot_info.dev_type= NORMAL_POWER_DEV
+	//if needed, change to low power  device
+	//ipc_sdk_run_var.iot_info.dev_type= LOW_POWER_DEV;
 
 	/*connect mode (essential)*/
 	ipc_sdk_run_var.net_info.connect_mode = connect_mode;
@@ -158,7 +161,8 @@ OPERATE_RET TUYA_IPC_SDK_START(WIFI_INIT_MODE_E connect_mode, CHAR_T *p_token)
 	{
 	    strcpy(ipc_sdk_run_var.debug_info.qrcode_token,p_token);
 	}
-
+	/* 0-5, the bigger, the more log */
+	ipc_sdk_run_var.debug_info.log_level = 4;
 	/*media info (essential)*/
     /* main stream(HD), video configuration*/
     /* NOTE
@@ -194,7 +198,10 @@ OPERATE_RET TUYA_IPC_SDK_START(WIFI_INIT_MODE_E connect_mode, CHAR_T *p_token)
     ipc_sdk_run_var.media_info.media_info.audio_channel[E_IPC_STREAM_AUDIO_MAIN]= TUYA_AUDIO_CHANNEL_MONO;/* channel */
     ipc_sdk_run_var.media_info.media_info.audio_fps[E_IPC_STREAM_AUDIO_MAIN] = 25;/* Fragments per second */
 
-    /*local storage (custome whether enable or not)*/
+	/* 将码流信息保存到s_media_info，用于P2P的一些回调中匹配。客户可以根据自己的逻辑来实现。此处仅作参考 */
+	IPC_APP_Set_Media_Info(&ipc_sdk_run_var.media_info.media_info);
+	
+    /*local storage (customer whether enable or not)*/
     ipc_sdk_run_var.local_storage_info.enable = 1;
     ipc_sdk_run_var.local_storage_info.max_event_num_per_day = 500;
     ipc_sdk_run_var.local_storage_info.skills = 0;//0 means all skills
@@ -250,73 +257,7 @@ OPERATE_RET TUYA_IPC_SDK_START(WIFI_INIT_MODE_E connect_mode, CHAR_T *p_token)
     }
 	return ret;
 }
-#if 0
-OPERATE_RET IPC_APP_SDK_START_V4(WIFI_INIT_MODE_E init_mode, CHAR_T *p_token)
-{
-    PR_DEBUG("SDK Version:%s\r\n", tuya_ipc_get_sdk_info());
 
-    memset(&s_mgr_info, 0, sizeof(IPC_MGR_INFO_S));
-    strcpy(s_mgr_info.storage_path, IPC_APP_STORAGE_PATH);
-    strcpy(s_mgr_info.upgrade_file_path, IPC_APP_UPGRADE_FILE);
-    strcpy(s_mgr_info.sd_base_path, IPC_APP_SD_BASE_PATH);
-    strcpy(s_mgr_info.product_key, IPC_APP_PID);
-    strcpy(s_mgr_info.uuid, IPC_APP_UUID);
-    strcpy(s_mgr_info.auth_key, IPC_APP_AUTHKEY);
-    strcpy(s_mgr_info.dev_sw_version, IPC_APP_VERSION);
-    s_mgr_info.max_p2p_user = 5; //TUYA P2P supports 5 users at the same time, including live preview and playback
-    PR_DEBUG("Init Value.storage_path %s", s_mgr_info.storage_path);
-    PR_DEBUG("Init Value.upgrade_file_path %s", s_mgr_info.upgrade_file_path);
-    PR_DEBUG("Init Value.sd_base_path %s", s_mgr_info.sd_base_path);
-    PR_DEBUG("Init Value.product_key %s", s_mgr_info.product_key);
-    PR_DEBUG("Init Value.uuid %s", s_mgr_info.uuid);
-    PR_DEBUG("Init Value.auth_key %s", s_mgr_info.auth_key);
-    PR_DEBUG("Init Value.p2p_id %s", s_mgr_info.p2p_id);
-    PR_DEBUG("Init Value.dev_sw_version %s", s_mgr_info.dev_sw_version);
-    PR_DEBUG("Init Value.max_p2p_user %u", s_mgr_info.max_p2p_user);
-
-
-    IPC_APP_Notify_LED_Sound_Status_CB(IPC_BOOTUP_FINISH);
-
-    TUYA_IPC_ENV_VAR_S env;
-
-    memset(&env, 0, sizeof(TUYA_IPC_ENV_VAR_S));
-
-    strcpy(env.storage_path, s_mgr_info.storage_path);
-    strcpy(env.product_key,s_mgr_info.product_key);
-    strcpy(env.uuid, s_mgr_info.uuid);
-    strcpy(env.auth_key, s_mgr_info.auth_key);
-    strcpy(env.dev_sw_version, s_mgr_info.dev_sw_version);
-    strcpy(env.dev_serial_num, "tuya_ipc");
-    env.dev_obj_dp_cb = IPC_APP_handle_dp_cmd_objs;
-    env.dev_dp_query_cb = IPC_APP_handle_dp_query_objs;
-    env.status_changed_cb = __IPC_APP_Get_Net_Status_cb;
-
-    env.upgrade_cb_info.sub_device_upgrade_cb = IPC_APP_Upgrade_Inform_cb;
-
-    env.gw_rst_cb = IPC_APP_Reset_System_CB;
-    env.gw_restart_cb = IPC_APP_Restart_Process_CB;
-    env.mem_save_mode = FALSE;
-    int ret = tuya_ipc_init_sdk(&env);
-    if(ret != 0)
-    {
-        printf("ipc sdk v4 init fail,please check run parameter，ret=%d\n",ret);
-        return -1;
-    }
-    IPC_APP_Set_Media_Info();
-    TUYA_APP_Init_Ring_Buffer();
-#if defined(QRCODE_ACTIVE_MODE) && (QRCODE_ACTIVE_MODE==1)
-    tuya_ipc_set_region(REGION_CN);
-    p_token = NULL;
-#endif
-    ret = tuya_ipc_start_sdk(init_mode, p_token);
-    if(ret != 0)
-    {
-        printf("ipc sdk v4 start fail,please check run parameter，ret=%d\n",ret);
-        return -1;
-    }
-    return OPRT_OK;
-}
-#endif
 VOID usage(CHAR_T *app_name)
 {
     printf("%s -m mode -t token -r raw path -h\n", (CHAR_T *)basename(app_name));

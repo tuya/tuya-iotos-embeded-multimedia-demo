@@ -375,9 +375,9 @@ char * IPC_APP_get_alarm_zone_draw(VOID)
         char region[64] = {0};
         //{"169":"{\"num\":1,\"region0\":{\"x\":0,\"y\":0,\"xlen\":50,\"ylen\":50}}"}
         if (0 == i){
-            snprintf(s_alarm_zone, 256,"{\\\"num\\\":%d",strAlarmZoneInfo.iZoneNum);
+            snprintf(s_alarm_zone, 256,"{\"num\":%d",strAlarmZoneInfo.iZoneNum);
         }
-        snprintf(region, 64, ",\\\"region%d\\\":{\\\"x\\\":%d,\\\"y\\\":%d,\\\"xlen\\\":%d,\\\"ylen\\\":%d}",i,strAlarmZoneInfo.alarmZone[i].pointX,\
+        snprintf(region, 64, ",\"region%d\":{\"x\":%d,\"y\":%d,\"xlen\":%d,\"ylen\":%d}",i,strAlarmZoneInfo.alarmZone[i].pointX,\
             strAlarmZoneInfo.alarmZone[i].pointY,strAlarmZoneInfo.alarmZone[i].width,strAlarmZoneInfo.alarmZone[i].height);
         strcat(s_alarm_zone, region);
         if(i == (strAlarmZoneInfo.iZoneNum - 1)){
@@ -757,7 +757,7 @@ void IPC_APP_set_preset(cJSON * p_preset_param)
         preset_pos.name[name_len] = '\0';
         error_num = tuya_ipc_preset_add(&preset_pos);
 
-        snprintf(respond_add,128,"{\\\"type\\\":%d,\\\"data\\\":{\\\"error\\\":%d}}",type->valueint,error_num);
+        snprintf(respond_add,128,"{\"type\":%d,\"data\":{\"error\":%d}}",type->valueint,error_num);
 
         tuya_ipc_dp_report(NULL, TUYA_DP_PRESET_SET,PROP_STR,respond_add,1);
 
@@ -788,7 +788,7 @@ void IPC_APP_set_preset(cJSON * p_preset_param)
 
             tuya_ipc_preset_del(devId->valuestring);
             
-            snprintf(respond_add,128,"{\\\"type\\\":%d,\\\"data\\\":{\\\"error\\\":%d}}",type->valueint,error_num);
+            snprintf(respond_add,128,"{\"type\":%d,\"data\":{\"error\":%d}}",type->valueint,error_num);
         }
     }
     else if(type->valueint == 3)
@@ -915,7 +915,7 @@ CHAR_T * IPC_APP_get_ap_mode(VOID)
     }
     __tuya_app_read_STR("tuya_ap_passwd", ap_pw, WIFI_PASSWD_LEN);
 
-    snprintf(response, 128, "{\\\"is_ap\\\":%d,\\\"ap_ssid\\\":\\\"%s\\\",\\\"password\\\":\\\"%s\\\"}",is_ap,ap_ssid,ap_pw);
+    snprintf(response, 128, "{\"is_ap\":%d,\"ap_ssid\":\"%s\",\"password\":\"%s\"}",is_ap,ap_ssid,ap_pw);
     return response;
 }
 #endif

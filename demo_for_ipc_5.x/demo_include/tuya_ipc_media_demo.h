@@ -35,7 +35,7 @@ VOID *thread_live_audio(VOID *arg);
 
 
 /* Set audio and video properties */
-VOID IPC_APP_Set_Media_Info(VOID);
+VOID IPC_APP_Set_Media_Info(IPC_MEDIA_INFO_S *media);
 /* TUYA_APP_Init_Ring_Buffer */
 OPERATE_RET TUYA_APP_Init_Ring_Buffer(VOID);
 /* TUYA_APP_Init_Stream_Storage */

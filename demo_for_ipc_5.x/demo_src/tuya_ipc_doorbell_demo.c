@@ -277,14 +277,14 @@ void doorbell_handler()
 }
 
 /***********************************************************
-*  Function: tuya_ipc_cancel_doorbell_event
+*  Function: tuya_ipc_doorbell_event
 *  Description: A mandatory API to be implemented
 *  Input: CALLED by TUYA sdk
 *  Output: none
 *  Return: 
 ***********************************************************/
 
-VOID tuya_ipc_cancel_doorbell_event(char* action)
+VOID tuya_ipc_doorbell_event(char* action)
 {
      int status = 0;
 

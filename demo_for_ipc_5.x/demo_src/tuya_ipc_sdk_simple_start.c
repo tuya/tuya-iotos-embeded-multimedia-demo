@@ -601,6 +601,7 @@ OPERATE_RET tuya_ipc_sdk_start(IN CONST TUYA_IPC_SDK_RUN_VAR_S * pRunInfo)
 #if defined(QRCODE_ACTIVE_MODE) && (QRCODE_ACTIVE_MODE==1)
     env.qrcode_active_cb = tuya_ipc_qrcode_active_cb;
 #endif
+    env.dev_type = pRunInfo->iot_info.dev_type;
     ret = tuya_ipc_init_sdk(&env);
 	if(OPRT_OK != ret)
 	{
@@ -608,14 +609,17 @@ OPERATE_RET tuya_ipc_sdk_start(IN CONST TUYA_IPC_SDK_RUN_VAR_S * pRunInfo)
 		return ret;
 	}
 
-	//setup 1: ring buffer 创建。
+	//设置日志等级
+	tuya_ipc_set_log_attr(pRunInfo->debug_info.log_level,NULL);
+	
+	//ring buffer 创建。
 	ret = tuya_ipc_sdk_ring_buffer_create(&pRunInfo->media_info.media_info);
 	if(OPRT_OK != ret)
 	{
 		PR_ERR("create ring buffer is error\n");
 		return ret;
 	}
-	//setup 3:
+	
 	ret = tuya_ipc_start_sdk(pRunInfo->net_info.connect_mode,pRunInfo->debug_info.qrcode_token);
 	if(OPRT_OK != ret)
 	{

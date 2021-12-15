@@ -20,43 +20,9 @@ IPC_MEDIA_INFO_S s_media_info = {0};
 extern CHAR_T s_raw_path[128];
 
 /* Set audio and video properties */
-VOID IPC_APP_Set_Media_Info(VOID)
+VOID IPC_APP_Set_Media_Info(IPC_MEDIA_INFO_S *media)
 {
-    memset(&s_media_info, 0 , sizeof(IPC_MEDIA_INFO_S));
-
-    /* main stream(HD), video configuration*/
-    /* NOTE
-    FIRST:If the main stream supports multiple video stream configurations, set each item to the upper limit of the allowed configuration.
-    SECOND:E_IPC_STREAM_VIDEO_MAIN must exist.It is the data source of SDK.
-    please close the E_IPC_STREAM_VIDEO_SUB for only one stream*/
-    s_media_info.channel_enable[E_IPC_STREAM_VIDEO_MAIN] = TRUE;    /* Whether to enable local HD video streaming */
-    s_media_info.video_fps[E_IPC_STREAM_VIDEO_MAIN] = 30;  /* FPS */
-    s_media_info.video_gop[E_IPC_STREAM_VIDEO_MAIN] = 30;  /* GOP */
-    s_media_info.video_bitrate[E_IPC_STREAM_VIDEO_MAIN] = TUYA_VIDEO_BITRATE_1M; /* Rate limit */
-    s_media_info.video_width[E_IPC_STREAM_VIDEO_MAIN] = 640; /* Single frame resolution of width*/
-    s_media_info.video_height[E_IPC_STREAM_VIDEO_MAIN] = 360;/* Single frame resolution of height */
-    s_media_info.video_freq[E_IPC_STREAM_VIDEO_MAIN] = 90000; /* Clock frequency */
-    s_media_info.video_codec[E_IPC_STREAM_VIDEO_MAIN] = TUYA_CODEC_VIDEO_H264; /* Encoding format */
-
-    /* substream(HD), video configuration */
-    /* Please note that if the substream supports multiple video stream configurations, please set each item to the upper limit of the allowed configuration. */
-    s_media_info.channel_enable[E_IPC_STREAM_VIDEO_SUB] = TRUE;     /* Whether to enable local SD video stream */
-    s_media_info.video_fps[E_IPC_STREAM_VIDEO_SUB] = 30;  /* FPS */
-    s_media_info.video_gop[E_IPC_STREAM_VIDEO_SUB] = 30;  /* GOP */
-    s_media_info.video_bitrate[E_IPC_STREAM_VIDEO_SUB] = TUYA_VIDEO_BITRATE_512K; /* Rate limit */
-    s_media_info.video_width[E_IPC_STREAM_VIDEO_SUB] = 640; /* Single frame resolution of width */
-    s_media_info.video_height[E_IPC_STREAM_VIDEO_SUB] = 360;/* Single frame resolution of height */
-    s_media_info.video_freq[E_IPC_STREAM_VIDEO_SUB] = 90000; /* Clock frequency */
-    s_media_info.video_codec[E_IPC_STREAM_VIDEO_SUB] = TUYA_CODEC_VIDEO_H264; /* Encoding format */
-
-    /* Audio stream configuration. 
-    Note: The internal P2P preview, cloud storage, and local storage of the SDK are all use E_IPC_STREAM_AUDIO_MAIN data. */
-    s_media_info.channel_enable[E_IPC_STREAM_AUDIO_MAIN] = TRUE;         /* Whether to enable local sound collection */
-    s_media_info.audio_codec[E_IPC_STREAM_AUDIO_MAIN] = TUYA_CODEC_AUDIO_PCM;/* Encoding format */
-    s_media_info.audio_sample [E_IPC_STREAM_AUDIO_MAIN]= TUYA_AUDIO_SAMPLE_8K;/* Sampling Rate */
-    s_media_info.audio_databits [E_IPC_STREAM_AUDIO_MAIN]= TUYA_AUDIO_DATABITS_16;/* Bit width */
-    s_media_info.audio_channel[E_IPC_STREAM_AUDIO_MAIN]= TUYA_AUDIO_CHANNEL_MONO;/* channel */
-    s_media_info.audio_fps[E_IPC_STREAM_AUDIO_MAIN] = 25;/* Fragments per second */
+    memcpy(&s_media_info, media, sizeof(IPC_MEDIA_INFO_S));
 
     PR_DEBUG("channel_enable:%d %d %d", s_media_info.channel_enable[0], s_media_info.channel_enable[1], s_media_info.channel_enable[2]);
 
