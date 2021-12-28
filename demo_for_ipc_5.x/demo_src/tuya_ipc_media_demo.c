@@ -12,11 +12,10 @@
 #include <sys/statfs.h>  
 #include "tuya_ipc_common_demo.h"
 #include "tuya_ipc_api.h"
-#include "tuya_ipc_stream_storage.h"
-#include "tuya_ipc_cloud_storage.h"
+#include "tuya_ring_buffer.h"
 #include "tuya_ipc_media_demo.h"
 #include "tuya_ipc_media.h"
-IPC_MEDIA_INFO_S s_media_info = {0};
+STATIC IPC_MEDIA_INFO_S s_media_info = {0};
 extern CHAR_T s_raw_path[128];
 
 /* Set audio and video properties */
@@ -40,6 +39,10 @@ VOID IPC_APP_Set_Media_Info(IPC_MEDIA_INFO_S *media)
     PR_DEBUG("audio_channel:%d", s_media_info.audio_channel[E_IPC_STREAM_AUDIO_MAIN]);
 }
 
+IPC_MEDIA_INFO_S *IPC_APP_Get_Media_Info()
+{
+    return &s_media_info;
+}
 /*
  * The sample code simulates audio and video by reading and writing files in rawfiles.tar.gz
  */
@@ -90,12 +93,12 @@ void *thread_live_audio(void *arg)
 
         usleep(sleepTick);
     }
-
+    tuya_ipc_ring_buffer_close(a_handle);   
     pthread_exit(0);
 }
 
 /* This is for demo only. Should be replace with real H264 encoder output */
-int read_one_frame_from_demo_video_file(unsigned char *pVideoBuf,unsigned int offset,unsigned int BufSize,unsigned char *IskeyFrame,unsigned int 
+int read_one_frame_from_demo_video_file(unsigned char *pVideoBuf,unsigned int offset,unsigned int BufSize,unsigned int *IskeyFrame,unsigned int 
 *FramLen,unsigned int *Frame_start)
 {
     int pos = 0;
@@ -204,23 +207,70 @@ void *thread_live_video(void *arg)
 
         h264_frame.p_buf = pVideoBuf+Frame_start;
         h264_frame.pts = pts;
-#if 0
-        /* Send HD video data to the SDK */
-        TUYA_APP_Put_Frame(E_IPC_STREAM_VIDEO_MAIN, &h264_frame);
-        /* Send SD video data to the SDK */
-        TUYA_APP_Put_Frame(E_IPC_STREAM_VIDEO_SUB, &h264_frame);
-#endif
+
         /* Send HD video data to the SDK */
         TUYA_APP_Put_Frame(v_handle, &h264_frame);
-        /* Send SD video data to the SDK */
-       // TUYA_APP_Put_Frame(E_IPC_STREAM_VIDEO_SUB, &h264_frame);
 
         usleep(sleepTick);
     }
-
+    tuya_ipc_ring_buffer_close(v_handle);
     pthread_exit(0);
 }
 
+//According to different chip platforms, users need to implement the interface of capture.
+int IPC_APP_get_snapshot(char *snap_addr, int *snap_size)
+{
+    //we use file to simulate
+    char snapfile[128];
+    *snap_size = 0;
+    extern char s_raw_path[];
+    printf("get one motion snapshot\n");
+    snprintf(snapfile,64,"%s/resource/media/demo_snapshot.jpg",s_raw_path);
+    FILE*fp = fopen(snapfile,"r+");
+    if(NULL == fp)
+    {
+        printf("fail to open snap.jpg\n");
+        return -1;
+    }
+    fseek(fp,0,SEEK_END);
+    *snap_size = ftell(fp);
+    if(*snap_size < 100*1024)
+    {
+        fseek(fp,0,SEEK_SET);
+        fread(snap_addr,*snap_size,1,fp);
+    }
+    fclose(fp);
+    return 0;
+}
+
+VOID IPC_APP_Init_Media_Task()
+{
+#ifdef __HuaweiLite__
+    TSK_INIT_PARAM_S stappTask;
+    int taskid = -1;
+    memset(&stappTask, 0, sizeof(TSK_INIT_PARAM_S));
+    stappTask.pfnTaskEntry = (TSK_ENTRY_FUNC)thread_live_video;
+    stappTask.uwStackSize  = 0x80000;
+    stappTask.pcName = "live_video";
+    stappTask.usTaskPrio = 10;
+    stappTask.uwResved   = LOS_TASK_STATUS_DETACHED;
+    LOS_TaskCreate((UINT32 *)&taskid, &stappTask);
+
+    stappTask.pfnTaskEntry = (TSK_ENTRY_FUNC)thread_live_audio;
+    stappTask.pcName = "live_video";
+    LOS_TaskCreate((UINT32 *)&taskid, &stappTask);
+#else
+    pthread_t h264_output_thread;
+    pthread_create(&h264_output_thread, NULL, thread_live_video, NULL);
+    pthread_detach(h264_output_thread);
+
+    pthread_t pcm_output_thread;
+    pthread_create(&pcm_output_thread, NULL, thread_live_audio, NULL);
+    pthread_detach(pcm_output_thread);
+#endif    
+
+    return;
+}
 
 /*
 ---------------------------------------------------------------------------------
@@ -229,6 +279,8 @@ code related RingBuffer
 */
 OPERATE_RET TUYA_APP_Init_Ring_Buffer(VOID)
 {
+	OPERATE_RET ret = OPRT_OK;
+
     STATIC BOOL_T s_ring_buffer_inited = FALSE;
     if(s_ring_buffer_inited == TRUE)
     {
@@ -236,38 +288,38 @@ OPERATE_RET TUYA_APP_Init_Ring_Buffer(VOID)
         return OPRT_OK;
     }
 
-    IPC_STREAM_E channel;
-    OPERATE_RET ret;
-    Ring_Buffer_Init_Param_S param;
-    for( channel = E_IPC_STREAM_VIDEO_MAIN; channel < E_IPC_STREAM_MAX; channel++ )
+    IPC_STREAM_E ringbuffer_stream_type;
+   // CHANNEL_E channel;
+    Ring_Buffer_Init_Param_S param={0};
+    for( ringbuffer_stream_type = E_IPC_STREAM_VIDEO_MAIN; ringbuffer_stream_type < E_IPC_STREAM_MAX; ringbuffer_stream_type++ )
     {
-        PR_DEBUG("init ring buffer Channel:%d Enable:%d", channel, s_media_info.channel_enable[channel]);
-        if(s_media_info.channel_enable[channel] == TRUE)
+        PR_DEBUG("init ring buffer Channel:%d Enable:%d", ringbuffer_stream_type, s_media_info.channel_enable[ringbuffer_stream_type]);
+        if(s_media_info.channel_enable[ringbuffer_stream_type] == TRUE)
         {
-            if(channel == E_IPC_STREAM_AUDIO_MAIN)
+            if(ringbuffer_stream_type >= E_IPC_STREAM_AUDIO_MAIN)
             {
                 param.bitrate = s_media_info.audio_sample[E_IPC_STREAM_AUDIO_MAIN]*s_media_info.audio_databits[E_IPC_STREAM_AUDIO_MAIN]/1024;
                 param.fps = s_media_info.audio_fps[E_IPC_STREAM_AUDIO_MAIN];
                 param.max_buffer_seconds = 0;
                 param.requestKeyFrameCB = NULL;
                 PR_DEBUG("audio_sample %d, audio_databits %d, audio_fps %d",s_media_info.audio_sample[E_IPC_STREAM_AUDIO_MAIN],s_media_info.audio_databits[E_IPC_STREAM_AUDIO_MAIN],s_media_info.audio_fps[E_IPC_STREAM_AUDIO_MAIN]);
-                ret = tuya_ipc_ring_buffer_init(0,0,channel,&param);
+                ret = tuya_ipc_ring_buffer_init(0,0,ringbuffer_stream_type,&param);
             }
             else
             {
-                param.bitrate = s_media_info.video_bitrate[channel];
-                param.fps = s_media_info.video_fps[channel];
+                param.bitrate = s_media_info.video_bitrate[ringbuffer_stream_type];
+                param.fps = s_media_info.video_fps[ringbuffer_stream_type];
                 param.max_buffer_seconds = 0;
                 param.requestKeyFrameCB = NULL;
-                PR_DEBUG("video_bitrate %d, video_fps %d",s_media_info.video_bitrate[channel],s_media_info.video_fps[channel]);
-                ret = tuya_ipc_ring_buffer_init(0,0,channel,&param);
+                PR_DEBUG("video_bitrate %d, video_fps %d",s_media_info.video_bitrate[ringbuffer_stream_type],s_media_info.video_fps[ringbuffer_stream_type]);
+                ret = tuya_ipc_ring_buffer_init(0,0,ringbuffer_stream_type, &param);
             }
             if(ret != 0)
             {
-                PR_ERR("init ring buffer fails. %d %d", channel, ret);
+                PR_ERR("init ring buffer fails. %d %d", ringbuffer_stream_type, ret);
                 return OPRT_MALLOC_FAILED;
             }
-            PR_DEBUG("init ring buffer success. channel:%d", channel);
+            PR_DEBUG("init ring buffer success. channel:%d", ringbuffer_stream_type);
         }
     }
 
@@ -290,170 +342,6 @@ OPERATE_RET TUYA_APP_Put_Frame(Ring_Buffer_User_Handle_S handle, IN CONST MEDIA_
     }
     return ret;
 }
-#if 0
-OPERATE_RET TUYA_APP_Get_Frame_Backwards(IN CONST IPC_STREAM_E channel,
-                                                  IN CONST USER_INDEX_E user_index,
-                                                  IN CONST UINT_T backward_frame_num,
-                                                  INOUT MEDIA_FRAME_S *p_frame)
-{
-    if(p_frame == NULL)
-    {
-        PR_ERR("input is null");
-        return OPRT_INVALID_PARM;
-    }
 
-    Ring_Buffer_Node_S *node;
-    if(channel == E_IPC_STREAM_VIDEO_MAIN || channel == E_IPC_STREAM_VIDEO_SUB)
-        node = tuya_ipc_ring_buffer_get_pre_video_frame(channel,user_index,backward_frame_num);
-    else
-        node = tuya_ipc_ring_buffer_get_pre_audio_frame(channel,user_index,backward_frame_num);
-    if(node != NULL)
-    {
-        p_frame->p_buf = node->rawData;
-        p_frame->size = node->size;
-        p_frame->timestamp = node->timestamp;
-        p_frame->type = node->type;
-        p_frame->pts = node->pts;
-        return OPRT_OK;
-    }
-    else
-    {
-        PR_ERR("Fail to re-locate for user %d backward %d frames, channel %d",user_index,backward_frame_num,channel);
-        return OPRT_COM_ERROR;
-    }
-}
-
-OPERATE_RET TUYA_APP_Get_Frame(IN CONST IPC_STREAM_E channel, IN CONST USER_INDEX_E user_index, IN CONST BOOL_T isRetry, IN CONST BOOL_T ifBlock, INOUT MEDIA_FRAME_S *p_frame)
-{
-    if(p_frame == NULL)
-    {
-        PR_ERR("input is null");
-        return OPRT_INVALID_PARM;
-    }
-    PR_TRACE("Get Frame Called. channel:%d user:%d retry:%d", channel, user_index, isRetry);
-
-    Ring_Buffer_Node_S *node = NULL;
-    while(node == NULL)
-    {
-        if(channel == E_IPC_STREAM_VIDEO_MAIN || channel == E_IPC_STREAM_VIDEO_SUB)
-        {
-            node = tuya_ipc_ring_buffer_get_video_frame(channel,user_index,isRetry);
-        }
-        else if(channel == E_IPC_STREAM_AUDIO_MAIN)
-        {
-            node = tuya_ipc_ring_buffer_get_audio_frame(channel,user_index,isRetry);
-        }
-        if(NULL == node)
-        {
-            if(ifBlock)
-            {
-                usleep(10*1000);
-            }
-            else
-            {
-                return OPRT_NO_MORE_DATA;
-            }
-        }
-    }
-    p_frame->p_buf = node->rawData;
-    p_frame->size = node->size;
-    p_frame->timestamp = node->timestamp;
-    p_frame->type = node->type;
-    p_frame->pts = node->pts;
-
-    PR_TRACE("Get Frame Success. channel:%d user:%d retry:%d size:%u ts:%ull type:%d pts:%llu",
-             channel, user_index, isRetry, p_frame->size, p_frame->timestamp, p_frame->type, p_frame->pts);
-    return OPRT_OK;
-}
-#endif
-/*
----------------------------------------------------------------------------------
----------------------------------------------------------------------------------
-*/
-
-/*
----------------------------------------------------------------------------------
-code related EchoShow
----------------------------------------------------------------------------------
-*/
-#if ENABLE_ECHO_SHOW == 1
-
-INT_T TUYA_APP_Echoshow_Start(PVOID_T context, PVOID_T priv_data)
-{
-    printf("echoshow start...\n");
-
-    return 0;
-}
-
-INT_T TUYA_APP_Echoshow_Stop(PVOID_T context, PVOID_T priv_data)
-{
-    printf("echoshow stop...\n");
-
-    return 0;
-}
-
-INT_T TUYA_APP_Chromecast_Start(PVOID_T context, PVOID_T priv_data)
-{
-    printf("chromecast start...\n");
-
-    return 0;
-}
-
-INT_T TUYA_APP_Chromecast_Stop(PVOID_T context, PVOID_T priv_data)
-{
-    printf("chromecast stop...\n");
-
-    return 0;
-}
-
-OPERATE_RET TUYA_APP_Enable_EchoShow_Chromecast(VOID)
-{
-#if 0
-     STATIC BOOL_T s_echoshow_inited = FALSE;
-     if(s_echoshow_inited == TRUE)
-     {
-         PR_DEBUG("The EchoShow Is Already Inited");
-         return OPRT_OK;
-     }
-
-    PR_DEBUG("Init EchoShow");
-
-    TUYA_ECHOSHOW_PARAM_S es_param = {0};
-
-    es_param.pminfo = &s_media_info;
-    es_param.cbk.pcontext = NULL;
-    es_param.cbk.start = TUYA_APP_Echoshow_Start;
-    es_param.cbk.stop = TUYA_APP_Echoshow_Stop;
-    /*Channel settings according to requirements*/
-    es_param.vchannel = 1;
-    es_param.mode = TUYA_ECHOSHOW_MODE_ECHOSHOW;
-
-    tuya_ipc_echoshow_init(&es_param);
-
-    TUYA_CHROMECAST_PARAM_S param = {0};
-
-    param.pminfo = &s_media_info;
-    /*Channel settings according to requirements*/
-    param.audio_channel = E_IPC_STREAM_AUDIO_MAIN_2RD;
-    param.video_channel = E_IPC_STREAM_VIDEO_SUB;
-    param.src = TUYA_STREAM_SOURCE_RINGBUFFER;
-    param.mode = TUYA_STREAM_TRANSMIT_MODE_ASYNC;
-    param.cbk.pcontext = NULL;
-    param.cbk.start = TUYA_APP_Chromecast_Start;
-    param.cbk.stop = TUYA_APP_Chromecast_Stop;
-    param.cbk.get_frame = NULL;
-
-    tuya_ipc_chromecast_init(&param);
-
-    s_echoshow_inited = TRUE;
-#endif
-    return OPRT_OK;
-}
-#endif
-/*
----------------------------------------------------------------------------------
-
----------------------------------------------------------------------------------
-*/
 
 

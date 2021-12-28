@@ -15,7 +15,10 @@
 #include "tuya_ipc_api.h"
 #include "tuya_ipc_stream_storage.h"
 #include "tuya_ipc_common_demo.h"
-
+#include "tuya_ipc_stream_storage_demo.h"
+#include "tuya_ipc_media_demo.h"
+#include "tuya_ipc_dp_handler.h"
+#include "tuya_ipc_log_demo.h"
 /************************
 Description: Using the TUYA SD card storage and playback function, 
 the developers need to implement the relevant interface.
@@ -40,18 +43,16 @@ CHAR_T *tuya_ipc_get_sd_mount_path(VOID);
 STATIC CHAR_T s_mounts_info[MAX_MOUNTS_INFO_LEN];
 STATIC CHAR_T s_mmcblk_name[MAX_MMC_NAME_LEN] = {0};
 
-#define TYDEBUG printf
-#define TYERROR printf
 
 //Implementation Interface of Formatting Operation
 VOID tuya_ipc_sd_format(VOID)
 {
     CHAR_T format_cmd[256] = {0};
     char buffer[512] = {0};
-    TYDEBUG("sd format begin\n");
+    PR_DEBUG("sd format begin\n");
 
     snprintf(format_cmd,256,"umount %s;%s %s;mkdir -p /mnt/sdcard;mount -t auto %s /mnt/sdcard;",s_mmcblk_name,FORMAT_CMD,s_mmcblk_name,s_mmcblk_name);
-    TYDEBUG("execute: %s\n",format_cmd);
+    PR_DEBUG("execute: %s\n",format_cmd);
     FILE *pp = popen(format_cmd, "r");
     if(NULL != pp)
     {
@@ -61,9 +62,9 @@ VOID tuya_ipc_sd_format(VOID)
     }
     else
     {
-        TYDEBUG("format_sd_card failed\n");
+        PR_DEBUG("format_sd_card failed\n");
     }
-    TYDEBUG("sd format end\n");
+    PR_DEBUG("sd format end\n");
 }
 
 //Implementation Interface for Remounting
@@ -76,10 +77,10 @@ VOID tuya_ipc_sd_remount(VOID)
     status = tuya_ipc_sd_get_status();
     if(SD_STATUS_NORMAL == status)
     {
-        TYDEBUG("sd don't need to remount!\n");
+        PR_DEBUG("sd don't need to remount!\n");
         return;
     }
-    TYDEBUG("remount_sd_card ..... \n");
+    PR_DEBUG("remount_sd_card ..... \n");
 
     snprintf(format_cmd,128,"umount %s;sleep 1;mount -t auto %s /mnt/sdcard;",s_mmcblk_name,s_mmcblk_name);
     FILE *pp = popen(format_cmd, "r");
@@ -191,14 +192,14 @@ VOID tuya_ipc_sd_get_capacity(UINT_T *p_total, UINT_T *p_used, UINT_T *p_free)
     struct statfs sd_fs;
     if (statfs("/mnt/sdcard", &sd_fs) != 0)
     {  
-        TYERROR("statfs failed!/n");
+        PR_ERR("statfs failed!/n");
         return;
     }
 
     *p_total = (UINT_T)(((UINT64_T)sd_fs.f_blocks * (UINT64_T)sd_fs.f_bsize) >> 10);
     *p_used = (UINT_T)((((UINT64_T)sd_fs.f_blocks - (UINT64_T)sd_fs.f_bfree) * (UINT64_T)sd_fs.f_bsize) >> 10);
     *p_free = (UINT_T)(((UINT64_T)sd_fs.f_bavail * (UINT64_T)sd_fs.f_bsize) >> 10);
-    TYDEBUG("sd capacity: total: %d KB, used %d KB, free %d KB\n",*p_total,*p_used,*p_free);
+    PR_DEBUG("sd capacity: total: %d KB, used %d KB, free %d KB\n",*p_total,*p_used,*p_free);
     return;
 }
 
@@ -208,14 +209,13 @@ CHAR_T *tuya_ipc_get_sd_mount_path(VOID)
     return SD_MOUNT_PATH;
 }
 
-int tuya_ipc_sd_status_upload(int status)
+INT_T tuya_ipc_sd_status_upload(INT_T status)
 {
 	IPC_APP_report_sd_status_changed(status);
 	return 0;
 }
 
-
-OPERATE_RET TUYA_APP_Init_Stream_Storage(IN CONST CHAR_T *p_sd_base_path)
+OPERATE_RET TUYA_APP_Init_Stream_Storage(TUYA_IPC_SDK_LOCAL_STORAGE_S * p_local_storage_info)
 {
     STATIC BOOL_T s_stream_storage_inited = FALSE;
     if(s_stream_storage_inited == TRUE)
@@ -224,16 +224,27 @@ OPERATE_RET TUYA_APP_Init_Stream_Storage(IN CONST CHAR_T *p_sd_base_path)
         return OPRT_OK;
     }
 
-    TUYA_IPC_STORAGE_VAR_S stg_var;
-    extern IPC_MEDIA_INFO_S s_media_info ;
-    memset(&stg_var, 0, SIZEOF(TUYA_IPC_STORAGE_VAR_S));
-    memcpy(stg_var.base_path, p_sd_base_path, SS_BASE_PATH_LEN);
-    //stg_var.media_setting = s_media_info;
-    memcpy(&stg_var.media_setting, &s_media_info, SIZEOF(IPC_MEDIA_INFO_S));
-    stg_var.max_event_per_day = 10;
-    stg_var.sd_status_changed_cb = tuya_ipc_sd_status_upload;
+    if(p_local_storage_info == NULL)
+    {
+        PR_DEBUG("Init Stream Storage fail. Param is null");
+        return OPRT_INVALID_PARM;
+    }
 
-    PR_DEBUG("Init Stream_Storage SD:%s", p_sd_base_path);
+    TUYA_IPC_STORAGE_VAR_S stg_var;
+
+    IPC_MEDIA_INFO_S* p_media_info = IPC_APP_Get_Media_Info();
+    if(p_media_info == NULL) 
+    {
+        return OPRT_COM_ERROR;
+    }
+
+    memset(&stg_var, 0, SIZEOF(TUYA_IPC_STORAGE_VAR_S));
+    memcpy(stg_var.base_path, p_local_storage_info->storage_path, SS_BASE_PATH_LEN);
+    memcpy(&stg_var.media_setting, p_media_info, SIZEOF(IPC_MEDIA_INFO_S));
+    stg_var.max_event_per_day = p_local_storage_info->max_event_num_per_day;
+    stg_var.sd_status_changed_cb = p_local_storage_info->sd_status_cb;
+
+    PR_DEBUG("Init Stream_Storage SD:%s", p_local_storage_info->storage_path);
     OPERATE_RET ret = tuya_ipc_ss_init(&stg_var);
     if(ret != OPRT_OK)
     {

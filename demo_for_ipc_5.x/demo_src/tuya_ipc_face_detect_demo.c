@@ -9,8 +9,10 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 #include "tuya_ipc_ai_face_detect.h"
 #include "tuya_ipc_ai_face_db.h"
+#include "tuya_ipc_dp_handler.h"
 
 #define TYDEBUG printf
 #define TYERROR printf

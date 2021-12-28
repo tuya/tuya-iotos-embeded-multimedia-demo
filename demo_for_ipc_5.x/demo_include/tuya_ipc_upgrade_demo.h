@@ -8,12 +8,20 @@
  *      Author: kuiba
  */
 
-#ifndef COMPONENTS_DEMO_TUYA_IPC_INCLUDE_TUYA_IPC_UPGRADE_DEMO_H_
-#define COMPONENTS_DEMO_TUYA_IPC_INCLUDE_TUYA_IPC_UPGRADE_DEMO_H_
+#ifndef __TUYA_IPC_UPGRADE_DEMO_H__
+#define __TUYA_IPC_UPGRADE_DEMO_H__
 
 #include<stdbool.h>
 #include "tuya_ipc_sdk_init.h"
 
-VOID IPC_APP_Upgrade_Inform_cb(IN CONST FW_UG_S *fw);
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#endif /* COMPONENTS_DEMO_TUYA_IPC_INCLUDE_TUYA_IPC_UPGRADE_DEMO_H_ */
+INT_T IPC_APP_Upgrade_Inform_cb(IN CONST FW_UG_S *fw);
+
+
+#ifdef __cplusplus
+}
+#endif
+#endif /* __TUYA_IPC_UPGRADE_DEMO_H__ */

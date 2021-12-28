@@ -17,7 +17,9 @@
 #include "tuya_ipc_api.h"
 #include "tuya_ipc_video_msg.h"
 #include "tuya_ipc_event.h"
-
+#include "tuya_ipc_doorbell_demo.h"
+#include "tuya_ipc_media_demo.h"
+#include "tuya_ipc_log_demo.h"
 
 #define DOORBELL_ALARM_DURATION 25*1000          //arlarm time
 #define DOORBELL_NOTIFY_MSG_DURATION 6*1000  //video msg trigger timeout
@@ -39,17 +41,17 @@ typedef enum
 typedef struct
 {
     DOORBELL_STATUS_E status;
-    int first_press; //15s timer only set once
+    INT_T first_press; //15s timer only set once
     time_t press_time;
-    char pic_buffer[PIC_MAX_SIZE];
-    int pic_size;
+    CHAR_T pic_buffer[PIC_MAX_SIZE];
+    INT_T pic_size;
     timer_t timerid;
 }DOOR_BELL_MANAGER;
 
 
 /*****************util API*************************/
 //According to different chip platforms, users need to implement the interface of timer
-static int ty_timer_create(TIMER_CB cb, timer_t *p_timer_id)
+STATIC INT_T ty_timer_create(TIMER_CB cb, timer_t *p_timer_id)
 {
     struct sigevent evp;
 
@@ -59,22 +61,22 @@ static int ty_timer_create(TIMER_CB cb, timer_t *p_timer_id)
     evp.sigev_notify_function = cb;
  
     if(timer_create(CLOCK_REALTIME, &evp, p_timer_id) == -1) {  
-        printf(" fail to timer create\n");
+        PR_ERR(" fail to timer create\n");
         return -1;
     }
 
     return 0;
 }
 
-static int ty_timer_destory(timer_t timer_id)
+STATIC INT_T ty_timer_destory(timer_t timer_id)
 {
     timer_delete(timer_id);
     return 0;
 }
 
-static int ty_timer_set_time(timer_t timer_id, unsigned long long value,  unsigned long long interval)
+STATIC INT_T ty_timer_set_time(timer_t timer_id, unsigned long long value,  unsigned long long interval)
 {
-    int flags = 0;
+    INT_T flags = 0;
     struct itimerspec it;
 
     it.it_value.tv_sec = value/1000;     // 最初开始时间间隔
@@ -83,14 +85,14 @@ static int ty_timer_set_time(timer_t timer_id, unsigned long long value,  unsign
     it.it_interval.tv_nsec = (interval%1000) * 1000;
 
     if(timer_settime(timer_id, flags, &it, NULL) == -1) {
-        printf("fail to timer settime\n");
+        PR_ERR("fail to timer settime\n");
         return -1;
     }
 
     return 0;
 }
 
-static int ty_timer_unset_time(timer_t timer_id)
+STATIC INT_T ty_timer_unset_time(timer_t timer_id)
 {
     struct itimerspec ts;
 
@@ -106,18 +108,18 @@ static int ty_timer_unset_time(timer_t timer_id)
 /**************************************************/
 
 //According to different chip platforms, users need to implement the interface of capture.
-void get_snapshot(char *snap_addr, int *snap_size)
+VOID get_snapshot(CHAR_T *snap_addr, INT_T *snap_size)
 {
     //we use file to simulate
-    char snapfile[128];
+    CHAR_T snapfile[128];
     *snap_size = 0;
-    extern char s_raw_path[];
-    printf("get one motion snapshot\n");
+    extern CHAR_T s_raw_path[];
+    PR_DEBUG("get one motion snapshot\n");
     snprintf(snapfile, sizeof(snapfile), "%s/resource/media/demo_snapshot.jpg",s_raw_path);
     FILE*fp = fopen(snapfile,"r+");
     if(NULL == fp)
     {
-        printf("fail to open snap.jpg\n");
+        PR_ERR("fail to open snap.jpg\n");
         return;
     }
     fseek(fp,0,SEEK_END);
@@ -134,13 +136,13 @@ void get_snapshot(char *snap_addr, int *snap_size)
 
 DOOR_BELL_MANAGER * doorbell_get_handler()
 {
-    static DOOR_BELL_MANAGER doorbell_manager;
+    STATIC DOOR_BELL_MANAGER doorbell_manager;
 
     return &doorbell_manager;
 }
 
 //IMPORTANT!!!!!! if needed , use mutex to protect!!!!!!
-void* timer_proc(void* argv)
+VOID* timer_proc(VOID* argv)
 {
     DOOR_BELL_MANAGER * phdl = doorbell_get_handler();
 
@@ -148,7 +150,7 @@ void* timer_proc(void* argv)
     {
         phdl->status = DOORBELL_RECORD;
         phdl->first_press = 0;
-        printf("##############LEAVE msg?\n");
+        PR_DEBUG("##############LEAVE msg?\n");
         ty_timer_set_time(phdl->timerid, DOORBELL_NOTIFY_MSG_DURATION, 0);
 
 		TUYA_ALARM_T alarm = {0};
@@ -162,18 +164,18 @@ void* timer_proc(void* argv)
  	}
     else if(phdl->status == DOORBELL_RECORD)
     {
-        printf("no message leave\n");
+        PR_DEBUG("no message leave\n");
         phdl->status = DOORBELL_LISTEN;
     }
     else if(phdl->status == DOORBELL_RECORDING)
     {
-        printf("upload message\n");
+        PR_DEBUG("upload message\n");
         phdl->status = DOORBELL_LISTEN;
     }
     else if(phdl->status == DOORBELL_TALKING)
     {
         //talking timeout, reset doorbell ms
-        printf("talking timeout ,reset doorbell ms\n");
+        PR_DEBUG("talking timeout ,reset doorbell ms\n");
         phdl->first_press = 0;
         phdl->status = DOORBELL_LISTEN;
     }
@@ -222,10 +224,10 @@ void doorbell_mqtt_handler(int status)
 }
 
 
-void doorbell_handler()
+VOID doorbell_handler()
 {
     DOOR_BELL_MANAGER * phdl = doorbell_get_handler();
-    int ret = 0;
+    INT_T ret = 0;
     time_t cur_time = 0;
 
 
@@ -259,7 +261,7 @@ void doorbell_handler()
 		ret = tuya_ipc_leave_video_msg(phdl->pic_buffer,phdl->pic_size);
 		if(ret != 0)
 		{
-			printf("#####tuya_ipc_doorbell_record_start failed \n");
+			PR_ERR("#####tuya_ipc_doorbell_record_start failed \n");
 		}
 		else
 		{
@@ -270,7 +272,7 @@ void doorbell_handler()
     }
     else if(phdl->status == DOORBELL_RECORDING)
     {
-        printf("recording...ignore!\n");
+        PR_DEBUG("recording...ignore!\n");
     }
   
     return;
@@ -303,12 +305,15 @@ VOID tuya_ipc_doorbell_event(char* action)
     doorbell_mqtt_handler(status);
     return;
 }
-extern IPC_MEDIA_INFO_S s_media_info;
 
-OPERATE_RET TUYA_APP_Enable_DOORBELL(VOID)
+OPERATE_RET TUYA_APP_Enable_Video_Msg(TUYA_IPC_SDK_VIDEO_MSG_S* p_video_msg_info)
 {
-    tuya_ipc_video_msg_init(&s_media_info, MSG_BOTH, 10);
+    IPC_MEDIA_INFO_S* p_media_info = IPC_APP_Get_Media_Info();
+    if(p_media_info == NULL) 
+    {
+        return OPRT_COM_ERROR;
+    }
 
-    return OPRT_OK;
+    return tuya_ipc_video_msg_init(p_media_info, p_video_msg_info->type, p_video_msg_info->msg_duration);
 }
 

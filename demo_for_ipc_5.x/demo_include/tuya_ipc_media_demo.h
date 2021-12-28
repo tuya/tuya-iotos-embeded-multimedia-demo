@@ -17,11 +17,6 @@
 extern "C" {
 #endif
 
-#define PR_ERR(fmt, ...)    printf("Err:"fmt"\r\n", ##__VA_ARGS__)
-#define PR_DEBUG(fmt, ...)  printf("Dbg:"fmt"\r\n", ##__VA_ARGS__)
-//#define PR_TRACE(fmt, ...)  printf("Trace:"fmt"\r\n", ##__VA_ARGS__)
-#define PR_TRACE(fmt, ...)
-
 
 VOID TUYA_APP_Enable_Speaker_CB(BOOL_T enabled);
 
@@ -30,30 +25,25 @@ VOID TUYA_APP_Rev_Audio_CB(IN CONST MEDIA_FRAME_S *p_audio_frame,
                            TUYA_AUDIO_DATABITS_E audio_databits,
                            TUYA_AUDIO_CHANNEL_E audio_channel);
 
-VOID *thread_live_video(VOID *arg);
-VOID *thread_live_audio(VOID *arg);
+int IPC_APP_get_snapshot(char *snap_addr, int *snap_size);
 
+VOID IPC_APP_Init_Media_Task();
 
 /* Set audio and video properties */
 VOID IPC_APP_Set_Media_Info(IPC_MEDIA_INFO_S *media);
+/* Get audio and video properties */
+IPC_MEDIA_INFO_S *IPC_APP_Get_Media_Info();
+
 /* TUYA_APP_Init_Ring_Buffer */
 OPERATE_RET TUYA_APP_Init_Ring_Buffer(VOID);
-/* TUYA_APP_Init_Stream_Storage */
-OPERATE_RET TUYA_APP_Init_Stream_Storage(IN CONST CHAR_T *p_sd_base_path);
+
 /* Send the raw data of audio and video  to the SDK */
 OPERATE_RET TUYA_APP_Put_Frame(Ring_Buffer_User_Handle_S handle,IN CONST MEDIA_FRAME_S *p_frame);
 /* Get the raw data of audio and video */
 //OPERATE_RET TUYA_APP_Get_Frame(IN CONST CHANNEL_E channel, IN CONST USER_INDEX_E user_index, IN CONST BOOL_T isRetry, IN CONST BOOL_T ifBlock, INOUT MEDIA_FRAME_S *p_frame);
-/* TUYA_APP_Enable_P2PTransfer */
-OPERATE_RET TUYA_APP_Enable_P2PTransfer(IN UINT_T max_users);
-/* TUYA_APP_Enable_EchoShow_Chromecast */
-OPERATE_RET TUYA_APP_Enable_EchoShow_Chromecast(VOID);
 
-/* In the event mode recording, notify the SDK to record when an event occurs.*/
-OPERATE_RET TUYA_APP_Trigger_Event_Storage(VOID);
 
-/* TUYA_APP_Enable_CloudStorage */
-OPERATE_RET TUYA_APP_Enable_CloudStorage(VOID);
+
 
 #ifdef __cplusplus
 }

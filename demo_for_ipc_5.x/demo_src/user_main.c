@@ -6,6 +6,9 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
+#include <stddef.h>
+#include <execinfo.h>
+#include <signal.h>
 #include "tuya_cloud_base_defs.h"
 #include "tuya_ipc_dp_utils.h"
 #include "tuya_ipc_cloud_storage.h"
@@ -15,38 +18,28 @@
 #include "tuya_ipc_motion_detect_demo.h"
 #include "tuya_ipc_doorbell_demo.h"
 #include "tuya_iot_config.h"
-#include "tuya_ipc_sdk_simple_start.h"
 #include "tuya_ipc_p2p_demo.h"
 #include "tuya_ipc_upgrade_demo.h"
-#include "tuya_ipc_sd_demo.h"
-#include "tuya_ipc_upgrade_demo.h"
-#include <stddef.h>
-#include <execinfo.h>
-#include <signal.h>
+#include "tuya_ipc_low_power_demo.h"
 #include "tuya_ipc_video_proc.h"
-#define IPC_APP_STORAGE_PATH    "/tmp/"   //Path to save tuya sdk DB files, should be readable, writeable and storable
-#define IPC_APP_UPGRADE_FILE    "/tmp/upgrade.file" //File with path to download file during OTA
-#define IPC_APP_SD_BASE_PATH    "/tmp/"      //SD card mount directory
-//#define IPC_APP_PID             "tuya_pid"  //Product ID of TUYA device, this is for demo only.
-//#define IPC_APP_UUID            "tuya_uuid" //Unique identification of each device//Contact tuya PM/BD for developing devices or BUY more
-//#define IPC_APP_AUTHKEY         "tuya_authkey" //Authentication codes corresponding to UUID, one machine one code, paired with UUID.
-#define IPC_APP_VERSION         "1.2.3"     //Firmware version displayed on TUYA APP
+#include "tuya_ipc_demo_default_cfg.h"
+#if defined(ENABLE_IPC_GW_BOTH) && (ENABLE_IPC_GW_BOTH==1)
+#include "scene_linkage.h"
+#endif
 
-
-IPC_MGR_INFO_S s_mgr_info = {0};
-
-STATIC INT_T s_mqtt_status = 0;
 
 STATIC CHAR_T s_token[30] = {0};
 
 CHAR_T s_raw_path[128] = {0};
-CHAR_T s_ipc_pid[64]="tuya_pid";//Product ID of TUYA device, this is for demo only.
-CHAR_T s_ipc_uuid[64]="tuya_uuid";//Unique identification of each device//Contact tuya PM/BD for developing devices or BUY more
-CHAR_T s_ipc_authkey[64]="tuya_authkey";//Authentication codes corresponding to UUID, one machine one code, paired with UUID.
+CHAR_T s_ipc_pid[64] = IPC_APP_PID;//Product ID of TUYA device, this is for demo only.
+CHAR_T s_ipc_uuid[64] = IPC_APP_UUID;//Unique identification of each device//Contact tuya PM/BD for developing devices or BUY more
+CHAR_T s_ipc_authkey[64] = IPC_APP_AUTHKEY;//Authentication codes corresponding to UUID, one machine one code, paired with UUID.
 
-#define TUYA_DEMO_DEBUG_DUMP
+STATIC TUYA_IPC_SDK_RUN_VAR_S g_sdk_run_info = {0};
+
+// #define TUYA_DEMO_DEBUG_DUMP
 #ifdef TUYA_DEMO_DEBUG_DUMP
-#define EXE_FILE_PATH "cmake-build/out/demo-ipc"
+#define EXE_FILE_PATH "cmake-build/out/demo-ipc"  //if customer use backtrace, set bin path here.
 void addr2funcline(char *addr)
 {
     char cmd[128] = {0};
@@ -85,11 +78,12 @@ void dump(int signo)
     exit(0);
 }
 
+#else
 void signal_handle(int sig)
 {
     char cThreadName[32] = {0};
     prctl(PR_GET_NAME, (unsigned long)cThreadName);
-    printf("[%s, %d] get signal(%d) thread(%d) name(%s)\n", __FUNCTION__, __LINE__, sig, syscall(__NR_gettid), cThreadName);
+    printf("[%s, %d] get signal(%d) thread(%ld) name(%s)\n", __FUNCTION__, __LINE__, sig, syscall(__NR_gettid), cThreadName);
 
     switch(sig) {
     case SIGINT:
@@ -106,33 +100,173 @@ void signal_handle(int sig)
 
     return;
 }
-
-
 #endif
 
-STATIC VOID __IPC_APP_Get_Net_Status_cb(IN CONST BYTE_T stat)
+#if defined(QRCODE_ACTIVE_MODE) && (QRCODE_ACTIVE_MODE==1)
+VOID IPC_APP_qrcode_shorturl_cb(CHAR_T* shorturl)
 {
-    PR_DEBUG("Net status change to:%d", stat);
-    switch(stat)
+    if(shorturl)
+        PR_DEBUG("Get Shorturl: [%s]", shorturl);
+
+    return;
+}
+#endif
+
+STATIC VOID * tuya_ipc_sdk_mqtt_online_proc(PVOID_T arg)
+{
+    PR_DEBUG("tuya_ipc_sdk_mqtt_online_proc thread start success\n");
+    while(IPC_APP_Get_MqttStatus() == FALSE)
     {
-#if defined(WIFI_GW) && (WIFI_GW==1)
-        case STAT_CLOUD_CONN:        //for wifi ipc
-        case STAT_MQTT_ONLINE:       //for low-power wifi ipc
-#endif
-#if defined(WIFI_GW) && (WIFI_GW==0)
-        case GB_STAT_CLOUD_CONN:     //for wired ipc
-#endif
+        sleep(1);
+    }
+    PR_DEBUG("tuya_ipc_sdk_mqtt_online_proc is start run\n");
+    int ret;
+    //同步服务器时间
+    TIME_T time_utc;
+    INT_T time_zone;
+    do
+    {
+        //需要SDK同步到时间后才能开启下面的业务
+        ret = tuya_ipc_get_service_time_force(&time_utc, &time_zone);
+
+    } while(ret != OPRT_OK);
+
+    if(FALSE == g_sdk_run_info.quick_start_info.enable)
+    {
+        TUYA_APP_Enable_P2PTransfer(&(g_sdk_run_info.p2p_info));
+    }
+
+    if(g_sdk_run_info.local_storage_info.enable)
+    {
+        ret = TUYA_APP_Init_Stream_Storage(&(g_sdk_run_info.local_storage_info));
+        PR_DEBUG("local storage init result is %d\n",ret);
+    }
+
+    if(g_sdk_run_info.cloud_ai_detct_info.enable)
+    {
+        ret = TUYA_APP_Enable_AI_Detect();
+        PR_DEBUG("ai detect result is %d\n",ret);
+    }
+
+    if(g_sdk_run_info.video_msg_info.enable)
+    {
+        ret =  TUYA_APP_Enable_Video_Msg(&(g_sdk_run_info.video_msg_info));
+        PR_DEBUG("door bell init result is %d\n",ret);
+    }
+
+    if(g_sdk_run_info.cloud_storage_info.enable)
+    {
+        ret = TUYA_APP_Enable_CloudStorage(&(g_sdk_run_info.cloud_storage_info));
+        PR_DEBUG("cloud storage init result is %d\n",ret);
+    }
+
+    IPC_APP_upload_all_status();
+
+    tuya_ipc_upload_skills();
+    PR_DEBUG("tuya_ipc_sdk_mqtt_online_proc is end run\n");
+
+    return NULL;
+}
+
+STATIC VOID * tuya_ipc_sdk_low_power_p2p_init_proc(VOID * args)
+{
+    PR_DEBUG("start low power p2p\n");
+    //todo process fail
+    TUYA_APP_Enable_P2PTransfer(&(g_sdk_run_info.p2p_info));
+    return NULL;
+}
+
+OPERATE_RET tuya_ipc_app_start(IN CONST TUYA_IPC_SDK_RUN_VAR_S * pRunInfo)
+{
+	if(NULL == pRunInfo)
+	{
+		PR_ERR("start sdk para is NULL\n");
+		return OPRT_INVALID_PARM;
+	}
+
+    OPERATE_RET ret = 0;
+    STATIC BOOL_T s_ipc_sdk_started = FALSE;
+    if(TRUE == s_ipc_sdk_started )
+    {
+        PR_DEBUG("IPC SDK has started\n");
+        return ret;
+    }
+
+	memcpy(&g_sdk_run_info, pRunInfo, SIZEOF(TUYA_IPC_SDK_RUN_VAR_S));
+
+	/* 将码流信息保存到s_media_info，用于P2P的一些回调中匹配。客户可以根据自己的逻辑来实现。此处仅作参考 */
+	IPC_APP_Set_Media_Info(&(g_sdk_run_info.media_info.media_info));
+
+	//低功耗 优先开启P2P
+    if(g_sdk_run_info.quick_start_info.enable)
+    {
+        pthread_t low_power_p2p_thread_handler;
+        int op_ret = pthread_create(&low_power_p2p_thread_handler,NULL, tuya_ipc_sdk_low_power_p2p_init_proc, NULL);
+        if(op_ret < 0)
         {
-            IPC_APP_Notify_LED_Sound_Status_CB(IPC_MQTT_ONLINE);
-            PR_DEBUG("mqtt is online\r\n");
-            s_mqtt_status = 1;
-            break;
-        }
-        default:
-        {
-            break;
+            PR_ERR("create p2p start thread is error\n");
+            return -1;
         }
     }
+
+    //setup1:创建等待mqtt上线进程，mqtt上线后，再开启与网络相关的业务
+    pthread_t mqtt_status_change_handle;
+    int op_ret = pthread_create(&mqtt_status_change_handle,NULL, tuya_ipc_sdk_mqtt_online_proc, NULL);
+    if(op_ret < 0)
+    {
+        PR_ERR("create tuya_ipc_sdk_mqtt_online_proc  thread is error\n");
+        return -1;
+    }
+
+	//setup2:init sdk
+    TUYA_IPC_ENV_VAR_S env;
+    memset(&env, 0, sizeof(TUYA_IPC_ENV_VAR_S));
+    strcpy(env.storage_path, pRunInfo->iot_info.cfg_storage_path);
+    strcpy(env.product_key,pRunInfo->iot_info.product_key);
+    strcpy(env.uuid, pRunInfo->iot_info.uuid);
+    strcpy(env.auth_key, pRunInfo->iot_info.auth_key);
+    strcpy(env.dev_sw_version, pRunInfo->iot_info.dev_sw_version);
+    strcpy(env.dev_serial_num, "tuya_ipc");
+    //TODO:raw
+    env.dev_raw_dp_cb = pRunInfo->dp_info.raw_dp_cmd_proc;
+    env.dev_obj_dp_cb = pRunInfo->dp_info.common_dp_cmd_proc;
+    env.dev_dp_query_cb = pRunInfo->dp_info.dp_query;
+    env.status_changed_cb = pRunInfo->net_info.net_status_change_cb;
+    env.upgrade_cb_info.upgrade_cb = pRunInfo->upgrade_info.upgrade_cb;
+    env.gw_rst_cb = pRunInfo->iot_info.gw_reset_cb;
+    env.gw_restart_cb = pRunInfo->iot_info.gw_restart_cb;
+#if defined(QRCODE_ACTIVE_MODE) && (QRCODE_ACTIVE_MODE==1)
+    env.qrcode_active_cb = pRunInfo->qrcode_active_cb;
+#endif
+    env.dev_type = pRunInfo->iot_info.dev_type;
+    ret = tuya_ipc_init_sdk(&env);
+	if(OPRT_OK != ret)
+	{
+		PR_ERR("init sdk is error\n");
+		return ret;
+	}
+
+	//设置日志等级
+	tuya_ipc_set_log_attr(pRunInfo->debug_info.log_level,NULL);
+	
+	//ring buffer 创建。
+	ret = TUYA_APP_Init_Ring_Buffer();
+	if(OPRT_OK != ret)
+	{
+		PR_ERR("create ring buffer is error\n");
+		return ret;
+	}
+	
+	ret = tuya_ipc_start_sdk(pRunInfo->net_info.connect_mode,pRunInfo->debug_info.qrcode_token);
+	if(OPRT_OK != ret)
+	{
+		PR_ERR("start sdk is error\n");
+		return ret;
+	}
+
+	s_ipc_sdk_started = true;
+	PR_DEBUG("tuya ipc sdk start is complete\n");
+	return ret;
 }
 
 
@@ -151,12 +285,12 @@ OPERATE_RET TUYA_IPC_SDK_START(WIFI_INIT_MODE_E connect_mode, CHAR_T *p_token)
 	
 	//normal device
 	ipc_sdk_run_var.iot_info.dev_type= NORMAL_POWER_DEV;
-	//if needed, change to low power  device
+	//if needed, change to low power device
 	//ipc_sdk_run_var.iot_info.dev_type= LOW_POWER_DEV;
 
 	/*connect mode (essential)*/
 	ipc_sdk_run_var.net_info.connect_mode = connect_mode;
-	ipc_sdk_run_var.net_info.net_status_change_cb = __IPC_APP_Get_Net_Status_cb;
+	ipc_sdk_run_var.net_info.net_status_change_cb = IPC_APP_Net_Status_cb;
 	if(p_token)
 	{
 	    strcpy(ipc_sdk_run_var.debug_info.qrcode_token,p_token);
@@ -198,9 +332,6 @@ OPERATE_RET TUYA_IPC_SDK_START(WIFI_INIT_MODE_E connect_mode, CHAR_T *p_token)
     ipc_sdk_run_var.media_info.media_info.audio_channel[E_IPC_STREAM_AUDIO_MAIN]= TUYA_AUDIO_CHANNEL_MONO;/* channel */
     ipc_sdk_run_var.media_info.media_info.audio_fps[E_IPC_STREAM_AUDIO_MAIN] = 25;/* Fragments per second */
 
-	/* 将码流信息保存到s_media_info，用于P2P的一些回调中匹配。客户可以根据自己的逻辑来实现。此处仅作参考 */
-	IPC_APP_Set_Media_Info(&ipc_sdk_run_var.media_info.media_info);
-	
     /*local storage (customer whether enable or not)*/
     ipc_sdk_run_var.local_storage_info.enable = 1;
     ipc_sdk_run_var.local_storage_info.max_event_num_per_day = 500;
@@ -209,19 +340,14 @@ OPERATE_RET TUYA_IPC_SDK_START(WIFI_INIT_MODE_E connect_mode, CHAR_T *p_token)
 	strcpy(ipc_sdk_run_var.local_storage_info.storage_path, IPC_APP_SD_BASE_PATH);
 
 	/*cloud storage (custome whether enable or not)*/
-    /*if no ase,it can equal NULL;*/
-    extern OPERATE_RET AES_CBC_init(VOID);
-    extern OPERATE_RET AES_CBC_encrypt(IN BYTE_T *pdata_in,  IN UINT_T data_len,
-            INOUT BYTE_T *pdata_out,  OUT UINT_T *pdata_out_len,
-            IN BYTE_T *pkey, IN BYTE_T *piv);
-    extern OPERATE_RET AES_CBC_destory(VOID);
-	ipc_sdk_run_var.cloud_storage_info.enable = 1;
-	ipc_sdk_run_var.aes_hw_info.aes_fun.init = AES_CBC_init;
-	ipc_sdk_run_var.aes_hw_info.aes_fun.encrypt =AES_CBC_encrypt;
-	ipc_sdk_run_var.aes_hw_info.aes_fun.destory = AES_CBC_destory;
-
+    /*if no AES, ipc_sdk_run_var.aes_hw_info.aes_fun.* can equal NULL;*/
+	ipc_sdk_run_var.cloud_storage_info.enable = TRUE;
+    ipc_sdk_run_var.cloud_storage_info.en_audio_record = TRUE;
+    ipc_sdk_run_var.cloud_storage_info.pre_record_time = -1; //set -1 to ignore it. default 2 seconds. 
 
 	/*p2p function (essential)*/
+    ipc_sdk_run_var.p2p_info.enable = TRUE;
+    ipc_sdk_run_var.p2p_info.is_lowpower = FALSE;
 	ipc_sdk_run_var.p2p_info.max_p2p_client=5;
 	ipc_sdk_run_var.p2p_info.live_mode = TRANS_DEFAULT_STANDARD;
 	ipc_sdk_run_var.p2p_info.transfer_event_cb = __TUYA_APP_p2p_event_cb;
@@ -247,15 +373,79 @@ OPERATE_RET TUYA_IPC_SDK_START(WIFI_INIT_MODE_E connect_mode, CHAR_T *p_token)
 	ipc_sdk_run_var.iot_info.gw_reset_cb = IPC_APP_Reset_System_CB;
 	ipc_sdk_run_var.iot_info.gw_restart_cb = IPC_APP_Restart_Process_CB;
 
+    /*QR-active function(essential)*/
+#if defined(QRCODE_ACTIVE_MODE) && (QRCODE_ACTIVE_MODE==1)
+    ipc_sdk_run_var.qrcode_active_cb = IPC_APP_qrcode_shorturl_cb;
+#endif
 
 	OPERATE_RET ret ;
-    ret = tuya_ipc_sdk_start(&ipc_sdk_run_var);
+    ret = tuya_ipc_app_start(&ipc_sdk_run_var);
     if(ret !=0 )
     {
-    	printf("ipc sdk v5 start fail,please check run parameter，ret=%d\n",ret);
-
+    	PR_DEBUG("ipc sdk start fail,please check run parameter，ret=%d\n",ret);
     }
 	return ret;
+}
+
+VOID IPC_APP_simulation()
+{
+    /* Manual simulation of related functions */
+    char test_input[64] = {0};
+    while(1)
+    {
+        scanf("%s",test_input);
+        /* Simulation of the start of motion detection events */
+        if(0 == strcmp(test_input,"start"))
+        {
+            IPC_APP_set_motion_status(1);
+        }
+        /* Simulation of the end of event */
+        else if(0 == strcmp(test_input,"stop"))
+        {
+            IPC_APP_set_motion_status(0);
+        }
+        /* Simulation of getting device's activation status */
+        else if(0 == strcmp(test_input,"status"))
+        {
+            IPC_REGISTER_STATUS status = tuya_ipc_get_register_status();
+            printf("current register status %d[0:unregistered 1:registered 2:activated]\n",status);
+        }
+        /* Simulation of doorbell press event */
+        else if(0 == strcmp(test_input,"bell"))
+        {
+            //Using demo file for simulation, should be replaced by real snapshot when events happen.
+            int snapshot_size = 150*1024;
+            char *snapshot_buf = (char *)malloc(snapshot_size);
+            int ret = IPC_APP_get_snapshot(snapshot_buf, &snapshot_size);
+            if(ret != 0)
+            {
+                printf("Get snap fail!\n");
+                continue;
+            }
+            /* Push the detection message and the current snapshot image to the APP.
+            Snapshot image acquisition needs to be implemented by the developer */
+            tuya_ipc_door_bell_press(DOORBELL_NORMAL, snapshot_buf, snapshot_size, NOTIFICATION_CONTENT_JPEG);
+            free(snapshot_buf);
+        }
+        /* Simulation of low power ipc */
+        else if (0 == strcmp(test_input, "start_low_power"))
+        {
+            tuya_ipc_low_power_sample();
+        }
+        else if (0 == strcmp(test_input, "ac"))
+        {
+            doorbell_handler();
+        }
+        /* Simulation of get time for OSD */
+        else if (0 == strcmp(test_input, "osd"))
+        {
+            IPC_APP_Show_OSD_Time();
+        }
+
+        usleep(100*1000);
+    }
+
+    return;
 }
 
 VOID usage(CHAR_T *app_name)
@@ -270,8 +460,6 @@ VOID usage(CHAR_T *app_name)
     return;
 }
 
-
-
 #ifdef __HuaweiLite__
 int app_main(int argc, char *argv[])
 #else
@@ -282,7 +470,6 @@ int main(int argc, char *argv[])
     INT_T res = -1;
     CHAR_T token[30] = {0};
     WIFI_INIT_MODE_E mode = WIFI_INIT_AUTO;
-    INT_T sdk_start_mode = 0;//default v4
 
 #if defined(WIFI_GW) && (WIFI_GW==0)
     mode = WIFI_INIT_NULL;
@@ -308,22 +495,17 @@ int main(int argc, char *argv[])
                             //developers need to make sure that devices are connected to the Internet. 。
     strcpy(token, argv[1]); //Token field values scanned from APP QR-codes or broadcast packets
 #else
-    while((res = getopt(argc, argv, "?m:t:s:r:c:p:u:a:h")) != -1)
+    while((res = getopt(argc, argv, "?m:t:s:r:p:u:a:h")) != -1)
     {
         switch(res) {
         case 'm':
             mode = atoi(optarg);
             break;
-
         case 't':
             strcpy(token, optarg);
             break;
-
         case 'r':
             strcpy(s_raw_path, optarg);
-            break;
-        case 'c':
-            sdk_start_mode = atoi(optarg);
             break;
         case 'p':
             strcpy(s_ipc_pid,optarg);
@@ -342,49 +524,18 @@ int main(int argc, char *argv[])
     }
 #endif
 
-    //start SDK default v4
-    int ret = -1;
+    OPERATE_RET ret = OPRT_OK;
     ret = TUYA_IPC_SDK_START(mode,token);
-    if(ret != 0)
+    if(ret != OPRT_OK)
     {
-        return 0;
+        return ret;
     }
 
-
-#ifdef __HuaweiLite__
-    TSK_INIT_PARAM_S stappTask;
-    int taskid = -1;
-    memset(&stappTask, 0, sizeof(TSK_INIT_PARAM_S));
-    stappTask.pfnTaskEntry = (TSK_ENTRY_FUNC)thread_live_video;
-    stappTask.uwStackSize  = 0x80000;
-    stappTask.pcName = "live_video";
-    stappTask.usTaskPrio = 10;
-    stappTask.uwResved   = LOS_TASK_STATUS_DETACHED;
-    LOS_TaskCreate((UINT32 *)&taskid, &stappTask);
-
-    stappTask.pfnTaskEntry = (TSK_ENTRY_FUNC)thread_live_audio;
-    stappTask.pcName = "live_video";
-    LOS_TaskCreate((UINT32 *)&taskid, &stappTask);
-
-    stappTask.pfnTaskEntry = (TSK_ENTRY_FUNC)thread_md_proc;
-    stappTask.pcName = "motion_detect";
-    LOS_TaskCreate((UINT32 *)&taskid, &stappTask);
-#else
-    pthread_t h264_output_thread;
-    pthread_create(&h264_output_thread, NULL, thread_live_video, NULL);
-    pthread_detach(h264_output_thread);
-
-    pthread_t pcm_output_thread;
-    pthread_create(&pcm_output_thread, NULL, thread_live_audio, NULL);
-    pthread_detach(pcm_output_thread);
-
-    pthread_t motion_detect_thread;
-    pthread_create(&motion_detect_thread, NULL, thread_md_proc, NULL);
-    pthread_detach(motion_detect_thread);
-#endif
+    IPC_APP_Init_Media_Task();
+    TUYA_APP_Enable_Motion_Detect();
 
     /* whether SDK is connected to MQTT */
-    while(s_mqtt_status != 1)
+    while(IPC_APP_Get_MqttStatus() != 1)
     {
         usleep(100000);
     }
@@ -392,104 +543,7 @@ int main(int argc, char *argv[])
     tuya_ipc_report_p2p_msg();
 #endif
 
-    /* Manual simulation of related functions */
-    char test_input[64] = {0};
-    extern int fake_md_status;
-    while(1)
-    {
-        scanf("%s",test_input);
-        /* Simulation of the start of motion detection events */
-        if(0 == strcmp(test_input,"start"))
-        {
-            fake_md_status = 1;
-        }
-        /* Simulation of the end of event */
-        else if(0 == strcmp(test_input,"stop"))
-        {
-            fake_md_status = 0;
-        }
-        /* Simulation of getting device's activation status */
-        else if(0 == strcmp(test_input,"status"))
-        {
-            IPC_REGISTER_STATUS status = tuya_ipc_get_register_status();
-            printf("current register status %d[0:unregistered 1:registered 2:activated]\n",status);
-        }
-        /* Simulation of doorbell press event */
-        else if(0 == strcmp(test_input,"bell"))
-        {
-            //Using demo file for simulation, should be replaced by real snapshot when events happen.
-            char snapfile[64];
-            snprintf(snapfile,64,"%s/resource/media/demo_snapshot.jpg",s_raw_path);
-            FILE*fp = fopen(snapfile,"r+");
-            if(NULL == fp)
-            {
-                printf("fail to open snap.jpg\n");
-                continue;
-            }
-            fseek(fp,0,SEEK_END);
-            int snapshot_size = ftell(fp);
-            char *snapshot_buf = (char *)malloc(snapshot_size);
-            fseek(fp,0,SEEK_SET);
-            fread(snapshot_buf,snapshot_size,1,fp);
-            fclose(fp);
-            /* Push the detection message and the current snapshot image to the APP.
-            Snapshot image acquisition needs to be implemented by the developer */
-            tuya_ipc_door_bell_press(DOORBELL_NORMAL, snapshot_buf, snapshot_size, NOTIFICATION_CONTENT_JPEG);
-            free(snapshot_buf);
-        }
-        /* Simulation of low power ipc */
-        else if (0 == strcmp(test_input, "start_low_power"))
-        {
-//            //this device info get from tuya ipc SDK
-//        //    char devbuf[]="6c44bbd5972e2a992funl2";
-//        //    char keybuf[]="4d7fc735ccac2cae";
-//            char devbuf[]="6cce58037f56937765kwqg";
-//            char keybuf[]="9c4fc747f148c052";
-//           // char devbuf[]="6cb88c4fb06aaf7cbewszc";
-//           // char keybuf[]="89efed934616cc39";
-//            //int ip = 0xd4402e47;//yufa
-//            int ip = 0xaf188c48;
-//            int port =443;
-            int ip=0;
-            int port=0;
-            int ret = tuya_ipc_low_power_server_get(&ip, &port);
-            if(ret != 0)
-            {
-                printf("get low power ip  error %d\n",ret);
-                continue;
-            }
-#define COMM_LEN 30
-            char devid[COMM_LEN]={0};
-            int id_len=COMM_LEN;
-            ret = tuya_ipc_device_id_get(devid, &id_len);
-            if(ret != 0)
-            {
-                printf("get devide error %d\n",ret);
-                continue;
-            }
-            char local_key[COMM_LEN]={0};
-            int key_len=COMM_LEN;
-            ret = tuya_ipc_local_key_get(local_key, &key_len);
-            if(ret != 0)
-            {
-                printf("get local key  error %d\n",ret);
-                continue;
-            }
-
-            TUYA_APP_LOW_POWER_START(devid,local_key,ip,port);
-        }
-        else if (0 == strcmp(test_input, "ac"))
-        {
-            doorbell_handler();
-        }
-        /* Simulation of get time for OSD */
-        else if (0 == strcmp(test_input, "osd"))
-        {
-            IPC_APP_Show_OSD_Time();
-        }
-
-        usleep(100*1000);
-    }
+    IPC_APP_simulation();
 
     return 0;
 }

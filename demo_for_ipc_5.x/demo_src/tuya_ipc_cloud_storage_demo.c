@@ -6,8 +6,9 @@
   *FileName:    tuya_ipc_cloud_storage_demo
 **********************************************************************************/
 #include <stdio.h>
-#include "tuya_ipc_cloud_storage.h"
-
+#include "tuya_ipc_cloud_storage_demo.h"
+#include "tuya_ipc_media_demo.h"
+#include "tuya_ipc_log_demo.h"
 /*
 ---------------------------------------------------------------------------------
 The cloud storage acquires the status of the storage order and upload of data has been impleted in SDK. 
@@ -70,14 +71,35 @@ OPERATE_RET AES_CBC_destory(VOID)
     return OPRT_OK;
 }
 
-extern IPC_MEDIA_INFO_S s_media_info;
-OPERATE_RET TUYA_APP_Enable_CloudStorage(VOID)
+OPERATE_RET TUYA_APP_Enable_CloudStorage(TUYA_IPC_SDK_CLOUD_STORAGE_S *p_cloud_storage_info)
 {
-    AES_HW_CBC_FUNC aes_func;
-    aes_func.init = AES_CBC_init;
-    aes_func.encrypt = AES_CBC_encrypt;
-    aes_func.destory = AES_CBC_destory;
-    tuya_ipc_cloud_storage_init(&s_media_info, &aes_func);
+    IPC_MEDIA_INFO_S* p_media_info = IPC_APP_Get_Media_Info();
+    if(p_media_info == NULL) 
+    {
+        return OPRT_COM_ERROR;
+    }    
+
+    /* set AES_HW_CBC_FUNC NULL, useless for tuya sdk now. */
+    OPERATE_RET ret;
+    ret = tuya_ipc_cloud_storage_init(p_media_info, NULL);
+    if(ret != OPRT_OK)
+    {
+        PR_DEBUG("Cloud Storage Init Err! ret :%d", ret);
+        return ret;
+    }
+
+    if(p_cloud_storage_info->en_audio_record == FALSE)
+    {
+        tuya_ipc_cloud_storage_set_audio_stat(p_cloud_storage_info->en_audio_record);
+        PR_DEBUG("Disable audio record");
+    }
+
+    // Set pre-record time ,if needed. default pre-record time:2 seconds
+    if(p_cloud_storage_info->pre_record_time >= 0)
+    {
+        ret = tuya_ipc_cloud_storage_set_pre_record_time(p_cloud_storage_info->pre_record_time);
+        PR_DEBUG("Set pre-record time to [%d], [%s]", p_cloud_storage_info->pre_record_time, ret == OPRT_OK ? "success" : "failure");
+    }
     return OPRT_OK;
 }
 

@@ -4,8 +4,8 @@
   *www.tuya.comm
 **********************************************************************************/
 
-#ifndef _TUYA_IPC_MGR_HANDLER_H
-#define _TUYA_IPC_MGR_HANDLER_H
+#ifndef _TUYA_IPC_SYSTEM_CONTROL_DEMO_H__
+#define _TUYA_IPC_SYSTEM_CONTROL_DEMO_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -29,16 +29,17 @@ VOID IPC_APP_Show_OSD_Time(VOID);
 
 VOID IPC_APP_Reset_System_CB(GW_RESET_TYPE_E reboot_type);
 
-VOID IPC_APP_Upgrade_Inform_cb(IN CONST FW_UG_S *fw);
-
 VOID IPC_APP_Restart_Process_CB(VOID);
 
 VOID IPC_APP_Upgrade_Firmware_CB(VOID);
 
 VOID IPC_APP_Notify_LED_Sound_Status_CB(IPC_APP_NOTIFY_EVENT_E notify_event);
 
+VOID IPC_APP_Net_Status_cb(IN CONST BYTE_T stat);
+
+INT_T IPC_APP_Get_MqttStatus();
 #ifdef __cplusplus
 }
 #endif
 
-#endif  /*_TUYA_IPC_MGR_HANDLER_H*/
+#endif  /*_TUYA_IPC_SYSTEM_CONTROL_DEMO_H__*/

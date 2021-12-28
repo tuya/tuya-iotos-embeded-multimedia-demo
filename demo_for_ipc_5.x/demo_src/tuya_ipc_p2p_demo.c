@@ -10,9 +10,8 @@
 #include "tuya_ipc_common_demo.h"
 #include "tuya_ipc_media.h"
 #include "tuya_ipc_stream_storage.h"
-#include "tuya_ipc_p2p.h"
-
-extern IPC_MEDIA_INFO_S s_media_info;
+#include "tuya_ipc_p2p_demo.h"
+#include "tuya_ipc_media_demo.h"
 
 typedef struct
 {
@@ -34,18 +33,27 @@ STATIC VOID __TUYA_APP_media_frame_TO_trans_video(IN CONST MEDIA_FRAME_S *p_in, 
     p_out->buf_len = p_in->size;
     p_out->pts = p_in->pts;
     p_out->timestamp = p_in->timestamp;
+
+    return;
 }
 
 STATIC VOID __TUYA_APP_media_frame_TO_trans_audio(IN CONST MEDIA_FRAME_S *p_in, INOUT TRANSFER_AUDIO_FRAME_S *p_out)
 {  
-    p_out->audio_codec = s_media_info.audio_codec[E_IPC_STREAM_AUDIO_MAIN];
-    p_out->audio_sample = s_media_info.audio_sample[E_IPC_STREAM_AUDIO_MAIN];
-    p_out->audio_databits = s_media_info.audio_databits[E_IPC_STREAM_AUDIO_MAIN];
-    p_out->audio_channel = s_media_info.audio_channel[E_IPC_STREAM_AUDIO_MAIN];
+    IPC_MEDIA_INFO_S* p_media_info = IPC_APP_Get_Media_Info();
+    if(p_media_info == NULL) 
+    {
+        return;
+    }
+    p_out->audio_codec = p_media_info->audio_codec[E_IPC_STREAM_AUDIO_MAIN];
+    p_out->audio_sample = p_media_info->audio_sample[E_IPC_STREAM_AUDIO_MAIN];
+    p_out->audio_databits = p_media_info->audio_databits[E_IPC_STREAM_AUDIO_MAIN];
+    p_out->audio_channel = p_media_info->audio_channel[E_IPC_STREAM_AUDIO_MAIN];
     p_out->p_audio_buf = p_in->p_buf;
     p_out->buf_len = p_in->size;
     p_out->pts = p_in->pts;
     p_out->timestamp = p_in->timestamp;
+
+    return;
 }
 
 STATIC VOID __TUYA_APP_ss_pb_event_cb(IN UINT_T pb_idx, IN SS_PB_EVENT_E pb_event, IN PVOID_T args)
@@ -55,6 +63,8 @@ STATIC VOID __TUYA_APP_ss_pb_event_cb(IN UINT_T pb_idx, IN SS_PB_EVENT_E pb_even
     {
         tuya_ipc_playback_send_finish(pb_idx);
     }
+
+    return;
 }
 
 STATIC VOID __TUYA_APP_ss_pb_get_video_cb(IN UINT_T pb_idx, IN CONST MEDIA_FRAME_S *p_frame)
@@ -62,6 +72,8 @@ STATIC VOID __TUYA_APP_ss_pb_get_video_cb(IN UINT_T pb_idx, IN CONST MEDIA_FRAME
     TRANSFER_VIDEO_FRAME_S video_frame = {0};
     __TUYA_APP_media_frame_TO_trans_video(p_frame, &video_frame);
     tuya_ipc_playback_send_video_frame(pb_idx, &video_frame);
+
+    return;
 }
 
 STATIC VOID __TUYA_APP_ss_pb_get_audio_cb(IN UINT_T pb_idx, IN CONST MEDIA_FRAME_S *p_frame)
@@ -69,11 +81,13 @@ STATIC VOID __TUYA_APP_ss_pb_get_audio_cb(IN UINT_T pb_idx, IN CONST MEDIA_FRAME
     TRANSFER_AUDIO_FRAME_S audio_frame = {0};
     __TUYA_APP_media_frame_TO_trans_audio(p_frame, &audio_frame);
     tuya_ipc_playback_send_audio_frame(pb_idx, &audio_frame);
+
+    return;
 }
 
 STATIC VOID __depereated_online_cb(IN TRANSFER_ONLINE_E status)
 {
-
+    return;
 }
 
 /* Callback functions for transporting events */
@@ -165,14 +179,14 @@ INT_T __TUYA_APP_p2p_event_cb(IN CONST TRANSFER_EVENT_E event, IN CONST PVOID_T 
             OPERATE_RET ret = tuya_ipc_pb_query_by_day(pquery->channel,pquery->year, pquery->month, pquery->day, &p_day_ts);
             if (OPRT_OK != ret)
             {
-                PR_ERR("pb_ts query by day: %d-%d-%d Fail", pquery->channel,pquery->year, pquery->month, pquery->day);
+                PR_ERR("pb_ts query by day:chn[%d] %d-%d-%d Fail", pquery->channel,pquery->year, pquery->month, pquery->day);
                 break;
             }
             if (p_day_ts){
-                printf("%s %d count = %d\n",__FUNCTION__,__LINE__,p_day_ts->file_count);
+                PR_DEBUG("%s %d count = %d\n",__FUNCTION__,__LINE__,p_day_ts->file_count);
                 PLAY_BACK_ALARM_INFO_ARR * pResult = (PLAY_BACK_ALARM_INFO_ARR *)malloc(sizeof(PLAY_BACK_ALARM_INFO_ARR) + p_day_ts->file_count*sizeof(PLAY_BACK_ALARM_FRAGMENT));
                 if (NULL == pResult){
-                    printf("%s %d malloc failed \n",__FUNCTION__,__LINE__);
+                    PR_ERR("%s %d malloc failed \n",__FUNCTION__,__LINE__);
                     free(p_day_ts);
                     pquery->alarm_arr = NULL;
                     return 0;
@@ -208,11 +222,11 @@ INT_T __TUYA_APP_p2p_event_cb(IN CONST TRANSFER_EVENT_E event, IN CONST PVOID_T 
             pb_file_info.end_timestamp = pParam->time_sect.end_timestamp;
             ret = tuya_ipc_ss_pb_start(pParam->channel, __TUYA_APP_ss_pb_event_cb, __TUYA_APP_ss_pb_get_video_cb, __TUYA_APP_ss_pb_get_audio_cb);
             if (0 != ret){
-                printf("%s %d pb_start failed\n",__FUNCTION__,__LINE__);
+                PR_ERR("%s %d pb_start failed\n",__FUNCTION__,__LINE__);
                 tuya_ipc_playback_send_finish(pParam->channel);
             }else{
                 if (0 != tuya_ipc_ss_pb_seek(pParam->channel, &pb_file_info, pParam->playTime)){
-                    printf("%s %d pb_seek failed\n",__FUNCTION__,__LINE__);
+                    PR_ERR("%s %d pb_seek failed\n",__FUNCTION__,__LINE__);
                     tuya_ipc_playback_send_finish(pParam->channel);
                 }
             }
@@ -347,9 +361,11 @@ VOID __TUYA_APP_rev_audio_cb(IN CONST TRANSFER_AUDIO_FRAME_S *p_audio_frame, IN 
              p_audio_frame->audio_codec, p_audio_frame->audio_sample, p_audio_frame->audio_databits, p_audio_frame->audio_channel);
 
     TUYA_APP_Rev_Audio_CB( &audio_frame, TUYA_AUDIO_SAMPLE_8K, TUYA_AUDIO_DATABITS_16, TUYA_AUDIO_CHANNEL_MONO);
+
+    return;
 }
 
-OPERATE_RET TUYA_APP_Enable_P2PTransfer(IN UINT_T max_users)
+OPERATE_RET TUYA_APP_Enable_P2PTransfer(IN TUYA_IPC_SDK_P2P_S * p2p_infos)
 {
     if(s_p2p_mgr.enabled == TRUE)
     {
@@ -357,25 +373,43 @@ OPERATE_RET TUYA_APP_Enable_P2PTransfer(IN UINT_T max_users)
         return OPRT_OK;
     }
 
-    PR_DEBUG("Init P2P With Max Users:%u", max_users);
+    if(p2p_infos == NULL)
+    {
+        PR_DEBUG("Init P2PTransfer fail. Param is null");
+        return OPRT_INVALID_PARM;
+    }
+    
+    if(p2p_infos->enable == FALSE)
+    {
+        return OPRT_OK;
+    }
+
+    IPC_MEDIA_INFO_S* p_media_info = IPC_APP_Get_Media_Info();
+    if(p_media_info == NULL) 
+    {
+        return OPRT_COM_ERROR;
+    }
+
+    PR_DEBUG("Init P2P With Max Users:%u", p2p_infos->max_p2p_client);
 
     s_p2p_mgr.enabled = TRUE;
-    s_p2p_mgr.max_users = max_users;
-    s_p2p_mgr.p2p_audio_codec = s_media_info.audio_codec[E_IPC_STREAM_AUDIO_MAIN];
+    s_p2p_mgr.max_users = p2p_infos->max_p2p_client;
+    s_p2p_mgr.p2p_audio_codec = p_media_info->audio_codec[E_IPC_STREAM_AUDIO_MAIN];
 
     TUYA_IPC_TRANSFER_VAR_S p2p_var = {0};
     p2p_var.online_cb = __depereated_online_cb;
-    p2p_var.on_rev_audio_cb = __TUYA_APP_rev_audio_cb;
+    p2p_var.on_rev_audio_cb = p2p_infos->rev_audio_cb;
     /*speak data format  app->ipc*/
     p2p_var.rev_audio_codec = TUYA_CODEC_AUDIO_G711U;
     p2p_var.audio_sample = TUYA_AUDIO_SAMPLE_8K;
     p2p_var.audio_databits = TUYA_AUDIO_DATABITS_16;
     p2p_var.audio_channel = TUYA_AUDIO_CHANNEL_MONO;
     /*end*/
-    p2p_var.on_event_cb = __TUYA_APP_p2p_event_cb;
+    p2p_var.on_event_cb = p2p_infos->transfer_event_cb;
     p2p_var.live_quality = TRANS_LIVE_QUALITY_MAX;
-    p2p_var.max_client_num = max_users;
-    memcpy(&p2p_var.AVInfo,&s_media_info,sizeof(IPC_MEDIA_INFO_S));
+    p2p_var.max_client_num = p2p_infos->max_p2p_client;
+    p2p_var.lowpower = p2p_infos->is_lowpower;
+    memcpy(&p2p_var.AVInfo,p_media_info,sizeof(IPC_MEDIA_INFO_S));
     tuya_ipc_tranfser_init(&p2p_var);
 
     return OPRT_OK;

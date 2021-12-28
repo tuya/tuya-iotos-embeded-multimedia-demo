@@ -6,11 +6,14 @@
 **********************************************************************************/
 
 #include <stdio.h>
+#include <unistd.h>
+#include <pthread.h>
 #include "tuya_ipc_cloud_storage.h"
 #include "tuya_ipc_stream_storage.h"
 #include "tuya_ipc_api.h"
 #include "tuya_ipc_event.h"
-
+#include "tuya_ipc_media_demo.h"
+#include "tuya_ipc_dp_handler.h"
 
 //AI detect should enable SUPPORT_AI_DETECT
 #define SUPPORT_AI_DETECT 1
@@ -19,8 +22,14 @@
 #endif
 
 //According to different chip platforms, users need to implement whether there is motion alarm in the current frame.
-int fake_md_status = 0;
-int get_motion_status()
+static int fake_md_status = 0;
+
+VOID IPC_APP_set_motion_status(int status)
+{
+    fake_md_status = status;
+}
+
+static int get_motion_status()
 {
     //if motion detected ,return 1
     return fake_md_status;
@@ -28,37 +37,11 @@ int get_motion_status()
     //return 0;
 }
 
-//According to different chip platforms, users need to implement the interface of capture.
-void get_motion_snapshot(char *snap_addr, int *snap_size)
-{
-    //we use file to simulate
-    char snapfile[128];
-    *snap_size = 0;
-    extern char s_raw_path[];
-    printf("get one motion snapshot\n");
-    snprintf(snapfile,64,"%s/resource/media/demo_snapshot.jpg",s_raw_path);
-    FILE*fp = fopen(snapfile,"r+");
-    if(NULL == fp)
-    {
-        printf("fail to open snap.jpg\n");
-        return;
-    }
-    fseek(fp,0,SEEK_END);
-    *snap_size = ftell(fp);
-    if(*snap_size < 100*1024)
-    {
-        fseek(fp,0,SEEK_SET);
-        fread(snap_addr,*snap_size,1,fp);
-    }
-    fclose(fp);
-    return;
-}
-
 #if SUPPORT_AI_DETECT
 //According to different chip platforms, users need to implement the interface of capture.
 VOID tuya_ipc_get_snapshot_cb(char* pjbuf,  int* size)
 {
-    get_motion_snapshot(pjbuf,size);
+    IPC_APP_get_snapshot(pjbuf,size);
 }
 #endif
 
@@ -87,7 +70,7 @@ VOID *thread_md_proc(VOID *arg)
                 //start Local SD Card Event Storage and Cloud Storage Events
                 tuya_ipc_start_storage(E_ALARM_SD_STORAGE);
                 tuya_ipc_start_storage(E_ALARM_CLOUD_STORAGE);
-                get_motion_snapshot(snap_addr,&snap_size);
+                IPC_APP_get_snapshot(snap_addr,&snap_size);
                 if(snap_size > 0)
                 {
                     md_enable = IPC_APP_get_alarm_function_onoff();
@@ -131,11 +114,32 @@ VOID *thread_md_proc(VOID *arg)
 
     return NULL;
 }
+
+OPERATE_RET TUYA_APP_Enable_Motion_Detect()
+{
+#ifdef __HuaweiLite__    
+    stappTask.pfnTaskEntry = (TSK_ENTRY_FUNC)thread_md_proc;
+    stappTask.pcName = "motion_detect";
+    LOS_TaskCreate((UINT32 *)&taskid, &stappTask);
+#else
+    pthread_t motion_detect_thread;
+    pthread_create(&motion_detect_thread, NULL, thread_md_proc, NULL);
+    pthread_detach(motion_detect_thread);    
+#endif
+
+    return OPRT_OK;
+}
+
 #if SUPPORT_AI_DETECT
-extern IPC_MEDIA_INFO_S s_media_info;
+
 OPERATE_RET TUYA_APP_Enable_AI_Detect()
 {
-    tuya_ipc_ai_detect_storage_init(&s_media_info);
+    IPC_MEDIA_INFO_S* p_media_info = IPC_APP_Get_Media_Info();
+    if(p_media_info == NULL) 
+    {
+        return OPRT_COM_ERROR;
+    }    
+    tuya_ipc_ai_detect_storage_init(p_media_info);
 
     return OPRT_OK;
 }

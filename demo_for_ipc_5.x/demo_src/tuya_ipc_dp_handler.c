@@ -19,14 +19,12 @@
 #include "tuya_ipc_dp_handler.h"
 #include "tuya_ipc_stream_storage.h"
 #include "tuya_os_adapter.h"
+#include "tuya_ipc_stream_storage_demo.h"
 #include <stdio.h>
 #include <string.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <unistd.h>
-
-
-
 
 /* Setting and Getting Integer Local Configuration.
 The reference code here is written directly to tmp, requiring developers to replace the path.*/
@@ -887,6 +885,11 @@ CHAR_T *IPC_APP_get_power_mode(VOID)
 
 #if defined(WIFI_GW) && (WIFI_GW==1)
 #ifdef TUYA_DP_AP_MODE
+extern OPERATE_RET tuya_adapter_wifi_get_work_mode(OUT WF_WK_MD_E *mode);
+extern OPERATE_RET tuya_adapter_wifi_get_mac(IN CONST WF_IF_E wf,INOUT NW_MAC_S *mac);
+extern OPERATE_RET tuya_adapter_wifi_ap_start(IN CONST WF_AP_CFG_IF_S *cfg);
+extern OPERATE_RET tuya_adapter_wifi_ap_stop(VOID);
+
 STATIC CHAR_T response[128] = {0};
 #define WIFI_SSID_LEN 32    // tuya sdk definition WIFI SSID MAX LEN
 #define WIFI_PASSWD_LEN 64  // tuya sdk definition WIFI PASSWD MAX LEN
@@ -1003,7 +1006,7 @@ INT_T IPC_APP_set_ap_mode(IN cJSON *p_ap_info)
         return ap_onoff;
     }
     ap_onoff = tmp->valueint;
-    __tuya_app_write_INT("tuya_ap_on_off", &ap_onoff);
+    __tuya_app_write_INT("tuya_ap_on_off", ap_onoff);
 
     if(ap_onoff == 1)
     {

@@ -112,15 +112,45 @@ OPERATE_RET IPC_APP_Sync_Utc_Time(VOID)
     //The API returns OK, indicating that UTC time has been successfully obtained.
     //If it return not OK, the time has not been fetched.
 
-    PR_DEBUG("Get Server Time Success: %lu %d", time_utc, time_zone);
+    PR_DEBUG("Get Server Time Success: %u %d", time_utc, time_zone);
     return OPRT_OK;
 }
 
 VOID IPC_APP_Show_OSD_Time(VOID)
 {
     struct tm localTime;
+    OPERATE_RET tuya_ipc_get_tm_with_timezone_dls(OUT struct tm *localTime);
     tuya_ipc_get_tm_with_timezone_dls(&localTime);
     PR_DEBUG("show OSD [%04d-%02d-%02d %02d:%02d:%02d]",localTime.tm_year,localTime.tm_mon,localTime.tm_mday,localTime.tm_hour,localTime.tm_min,localTime.tm_sec);
 }
 
+STATIC INT_T s_mqtt_status = 0;
+VOID IPC_APP_Net_Status_cb(IN CONST BYTE_T stat)
+{
+    PR_DEBUG("Net status change to:%d", stat);
+    switch(stat)
+    {
+#if defined(WIFI_GW) && (WIFI_GW==1)
+        case STAT_CLOUD_CONN:        //for wifi ipc
+        case STAT_MQTT_ONLINE:       //for low-power wifi ipc
+#endif
+#if defined(WIFI_GW) && (WIFI_GW==0)
+        case GB_STAT_CLOUD_CONN:     //for wired ipc
+#endif
+        {
+            IPC_APP_Notify_LED_Sound_Status_CB(IPC_MQTT_ONLINE);
+            PR_DEBUG("mqtt is online\r\n");
+            s_mqtt_status = 1;
+            break;
+        }
+        default:
+        {
+            break;
+        }
+    }
+}
 
+INT_T IPC_APP_Get_MqttStatus()
+{
+    return s_mqtt_status;
+}

@@ -4,13 +4,14 @@
  *  Created on: 2020年12月28日
  *      Author: kuiba
  */
-
+#include <stdio.h>
+#include <unistd.h>
 #include<stdbool.h>
 #include "tuya_ipc_api.h"
 #include "tuya_ipc_common_demo.h"
 #include "tuya_ipc_upgrade_demo.h"
+#include "tuya_ipc_demo_default_cfg.h"
 
-extern IPC_MGR_INFO_S s_mgr_info;
 /* OTA */
 //Callback after downloading OTA files
 VOID __IPC_APP_upgrade_notify_cb(IN CONST FW_UG_S *fw, IN CONST INT_T download_result, IN PVOID_T pri_data)
@@ -71,75 +72,16 @@ OPERATE_RET __IPC_APP_get_file_data_cb(IN CONST FW_UG_S *fw, IN CONST UINT_T tot
 }
 
 
-VOID IPC_APP_Upgrade_Inform_cb(IN CONST FW_UG_S *fw)
+INT_T IPC_APP_Upgrade_Inform_cb(IN CONST FW_UG_S *fw)
 {
     PR_DEBUG("Rev Upgrade Info");
     PR_DEBUG("fw->fw_url:%s", fw->fw_url);
-    //PR_DEBUG("fw->fw_md5:%s", fw->fw_md5);
     PR_DEBUG("fw->sw_ver:%s", fw->sw_ver);
     PR_DEBUG("fw->file_size:%u", fw->file_size);
 
-    FILE *p_upgrade_fd = fopen(s_mgr_info.upgrade_file_path, "w+b");
-    tuya_ipc_upgrade_sdk(fw, __IPC_APP_get_file_data_cb, __IPC_APP_upgrade_notify_cb, p_upgrade_fd);
-}
-
-#if 0
-/**
- * @brief start upgrade notify
- *
- * @param[in] file_size upgraded file size
- *
- * @retval  =0      success
- * @retval  <0      other errror
- */
-
-int IPC_APP_Upgrade_Start_CB(unsigned int  file_size)
-{
-    printf("Rev Upgrade Info,upgrade is %u\n",file_size);
-    //OTA
-    if(file_size == 0)
-    {
-    	return -1;
-    }
-    //TODO:developer process.eg:maloc space to save upgrade file;
-
-	return 0;
-}
-
-/**
- * @brief ota data process
- *
- * @param[in] total_len: ota upgrade file total size
- * @param[in] offset: current data  offset in ota upgrade file
- * @param[in] data:  current ota data buffer address
- * @param[in] len: current ota buffer len;
- * @param[out] remain_len: data len that not process
- * @param[in] pri_data: reserved
- *
- * @retval  =0      sucess
- * @retval  <0      other error
- */
-
-int IPC_APP_Upgrade_Data_Process_CB(const unsigned int total_len, const unsigned int offset,
-                              const unsigned char* data, const unsigned int len, unsigned int* remain_len, void* pri_data)
-{
-	//TODO:developer save ota data to space which malloc in IPC_APP_Upgrade_Start_CB
-    return 0;
-}
-
-/**
- * @brief upgrade data receiv over
- *
- * param[in]  reset: reset flags.
- * @retval  =0      success
- * @retval  <0      other error
- */
-int IPC_APP_Upgrade_End_CB(bool reset)
-{
-    // verify
-	 printf("end Upgrade Info,upgrade is %d\n",reset);
-    //TODO:developer determine reset device
+    FILE *p_upgrade_fd = fopen(IPC_APP_UPGRADE_FILE, "w+b");
+    tuya_ipc_upgrade_sdk(fw, __IPC_APP_get_file_data_cb, __IPC_APP_upgrade_notify_cb, (PVOID_T)p_upgrade_fd);
 
     return 0;
 }
-#endif
+

@@ -2,6 +2,8 @@
   *Copyright(C),2015-2020, TUYA www.tuya.comm
   *FileName:    tuya_ipc_qrcode_demo
 **********************************************************************************/
+#include <stdio.h>
+#include <unistd.h>
 #include "tuya_ipc_api.h"
 #include "tuya_ipc_qrcode_proc.h"
 
