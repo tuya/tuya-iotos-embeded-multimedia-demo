@@ -79,9 +79,11 @@ OPERATE_RET TUYA_APP_Enable_CloudStorage(TUYA_IPC_SDK_CLOUD_STORAGE_S *p_cloud_s
         return OPRT_COM_ERROR;
     }    
 
-    /* set AES_HW_CBC_FUNC NULL, useless for tuya sdk now. */
+    /* useless for tuya sdk now. we will fix it next version*/
+    AES_HW_CBC_FUNC aes_funcs;
+	
     OPERATE_RET ret;
-    ret = tuya_ipc_cloud_storage_init(p_media_info, NULL);
+    ret = tuya_ipc_cloud_storage_init(p_media_info, &aes_funcs);
     if(ret != OPRT_OK)
     {
         PR_DEBUG("Cloud Storage Init Err! ret :%d", ret);
