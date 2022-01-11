@@ -860,6 +860,12 @@ STATIC TUYA_RAW_DP_INFO_S s_raw_dp_table[] =
 
 };
 
+STATIC SIMULATION_FILTER dp_simulation_filter = NULL;
+VOID IPC_APP_set_dp_filter(SIMULATION_FILTER filter_cb)
+{
+    dp_simulation_filter = filter_cb;
+    return;
+}
 VOID IPC_APP_handle_dp_cmd_objs(IN CONST TY_RECV_OBJ_DP_S *dp_rev)
 {
     TY_OBJ_DP_S *dp_data = (TY_OBJ_DP_S *)(dp_rev->dps);
@@ -870,6 +876,14 @@ VOID IPC_APP_handle_dp_cmd_objs(IN CONST TY_RECV_OBJ_DP_S *dp_rev)
     for(index = 0; index < cnt; index++)
     {
         TY_OBJ_DP_S *p_dp_obj = dp_data + index;
+
+        if(dp_simulation_filter)
+        {
+            if(dp_simulation_filter(p_dp_obj->dpid) == 0)
+            {
+                continue;
+            }
+        }
 
         for(table_idx = 0; table_idx < table_count; table_idx++)
         {
@@ -905,6 +919,13 @@ VOID IPC_APP_handle_dp_query_objs(IN CONST TY_DP_QUERY_S *dp_query)
     INT_T index = 0;
     for(index = 0; index < dp_query->cnt; index++)
     {
+        if(dp_simulation_filter)
+        {
+            if(dp_simulation_filter(dp_query->dpid) == 0)
+            {
+                continue;
+            }
+        }
         for(table_idx = 0; table_idx < table_count; table_idx++)
         {
             if(s_dp_table[table_idx].dp_id == dp_query->dpid[index])

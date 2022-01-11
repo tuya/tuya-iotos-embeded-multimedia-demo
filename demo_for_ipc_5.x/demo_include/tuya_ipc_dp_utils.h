@@ -126,6 +126,9 @@ VOID IPC_APP_handle_dp_cmd_objs(IN CONST TY_RECV_OBJ_DP_S *dp_rev);
 VOID IPC_APP_handle_dp_query_objs(IN CONST TY_DP_QUERY_S *dp_query);
 VOID IPC_APP_handle_raw_dp_cmd_objs(IN CONST TY_RECV_RAW_DP_S *dp_rev);
 
+typedef OPERATE_RET (*SIMULATION_FILTER)(BYTE_T recv_dp_id);
+VOID IPC_APP_set_dp_filter(SIMULATION_FILTER);
+
 #if defined(TUYA_EXTEND_DEVELOP)
 OPERATE_RET APP_DP_VALUE_CMD_PROC(IN CONST INT_T dp_id, IN CONST INT_T dp_value,OUT  INT_T * dp_report_value);
 OPERATE_RET APP_DP_BOOL_CMD_PROC(IN CONST INT_T dp_id, IN CONST BOOL_T dp_value,OUT  BOOL_T * dp_report_value );

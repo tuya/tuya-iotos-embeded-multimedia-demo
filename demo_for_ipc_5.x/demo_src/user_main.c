@@ -441,6 +441,11 @@ VOID IPC_APP_simulation()
         {
             IPC_APP_Show_OSD_Time();
         }
+        else if( 0 == strcmp(test_input, "dp_test"))
+        {
+            //dp_simulation_unload();
+            //dp_simulation_load();
+        }
 
         usleep(100*1000);
     }
