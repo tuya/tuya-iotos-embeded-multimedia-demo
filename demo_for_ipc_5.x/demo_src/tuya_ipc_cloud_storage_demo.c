@@ -80,7 +80,7 @@ OPERATE_RET TUYA_APP_Enable_CloudStorage(TUYA_IPC_SDK_CLOUD_STORAGE_S *p_cloud_s
     }    
 
     /* useless for tuya sdk now. we will fix it next version*/
-    AES_HW_CBC_FUNC aes_funcs;
+    AES_HW_CBC_FUNC aes_funcs = {0};
 	
     OPERATE_RET ret;
     ret = tuya_ipc_cloud_storage_init(p_media_info, &aes_funcs);
