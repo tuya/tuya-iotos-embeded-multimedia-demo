@@ -512,8 +512,9 @@ OPERATE_RET tuya_adapter_wifi_get_ip(IN CONST WF_IF_E wf,OUT NW_IP_S *ip)
 
     if(wf == WF_AP)
     {/* Simple Processing in AP Mode */
-        memcpy(ip->ip, "192.168.0.1", strlen("192.168.0.1"));
-        memcpy(ip->gw, "192.168.0.1", strlen("192.168.0.1"));
+	/*!!!Important!! Config and active with AP mode, you must set ip addr to 192.168.175.** */
+        memcpy(ip->ip, "192.168.175.1", strlen("192.168.175.1"));
+        memcpy(ip->gw, "192.168.175.1", strlen("192.168.175.1"));
         memcpy(ip->mask, "255.255.255.0", strlen("255.255.255.0"));
     }
 
