@@ -39,7 +39,6 @@ Other interfaces can be used directly in theory, if a user has their own impleme
 static BOOL_T sniffer_set_done = FALSE;
 OPERATE_RET tuya_adapter_wifi_station_connect(IN CONST CHAR_T *ssid,IN CONST CHAR_T *passwd)
 {
-	return 0;
     if(sniffer_set_done)
     {
         sniffer_set_done = FALSE;
