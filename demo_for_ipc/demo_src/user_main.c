@@ -192,8 +192,8 @@ int main(int argc, char *argv[])
 #if defined(QRCODE_ACTIVE_MODE) && (QRCODE_ACTIVE_MODE==1)
     /* demo: how to get qrcode from tuya server for display */
     sleep(2);
-    CHAR_T info[32] = {0};
-    tuya_ipc_get_qrcode(NULL,info, 32);
+    CHAR_T info[256] = {0};
+    tuya_ipc_get_qrcode(NULL,info, 256);
     printf("###info:%s\n", info);
 #endif
     /*Demo uses files to simulate audio/video/jpeg inputs. 
