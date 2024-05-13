@@ -66,11 +66,7 @@ typedef struct
 
 typedef struct
 {
-	BOOL_T enable; /*enable == false ,other var is invalid*/
-}TUYA_IPC_SDK_CLOUD_AI_S;
 
-typedef struct
-{
 	IPC_MEDIA_INFO_S media_info;
 }TUYA_IPC_SDK_MEDIA_STREAM_S;
 typedef struct
@@ -108,7 +104,6 @@ typedef struct
 	TUYA_IPC_SDK_P2P_S p2p_info;/*p2p information*/
 	TUYA_IPC_SDK_LOCAL_STORAGE_S local_storage_info;/* sd card storage information*/
 	TUYA_IPC_SDK_CLOUD_STORAGE_S cloud_storage_info;/*cloud storage information*/
-	TUYA_IPC_SDK_CLOUD_AI_S cloud_ai_detct_info; /*ai detcet information*/
 	TUYA_IPC_SDK_VIDEO_MSG_S  video_msg_info;/*door bell function information*/
 	TUYA_IPC_SDK_QUICK_START_S  quick_start_info;/*start way for p2p  */
 	TUYA_IPC_SDK_DEBUG_S debug_info;/*debug info sets*/

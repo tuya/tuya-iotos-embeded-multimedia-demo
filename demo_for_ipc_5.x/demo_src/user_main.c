@@ -142,12 +142,6 @@ STATIC VOID * tuya_ipc_sdk_mqtt_online_proc(PVOID_T arg)
         PR_DEBUG("local storage init result is %d\n",ret);
     }
 
-    if(g_sdk_run_info.cloud_ai_detct_info.enable)
-    {
-        ret = TUYA_APP_Enable_AI_Detect();
-        PR_DEBUG("ai detect result is %d\n",ret);
-    }
-
     if(g_sdk_run_info.video_msg_info.enable)
     {
         ret =  TUYA_APP_Enable_Video_Msg(&(g_sdk_run_info.video_msg_info));
@@ -352,9 +346,6 @@ OPERATE_RET TUYA_IPC_SDK_START(WIFI_INIT_MODE_E connect_mode, CHAR_T *p_token)
 	ipc_sdk_run_var.p2p_info.live_mode = TRANS_DEFAULT_STANDARD;
 	ipc_sdk_run_var.p2p_info.transfer_event_cb = __TUYA_APP_p2p_event_cb;
 	ipc_sdk_run_var.p2p_info.rev_audio_cb = __TUYA_APP_rev_audio_cb;
-
-	/*AI detect (custome whether enable or not)*/
-	ipc_sdk_run_var.cloud_ai_detct_info.enable = 1;
 
 	/*door bell (custome whether enable or not)*/
 	ipc_sdk_run_var.video_msg_info.enable = 1;

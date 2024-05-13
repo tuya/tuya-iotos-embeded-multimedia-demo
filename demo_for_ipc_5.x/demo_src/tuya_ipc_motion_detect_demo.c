@@ -15,11 +15,6 @@
 #include "tuya_ipc_media_demo.h"
 #include "tuya_ipc_dp_handler.h"
 
-//AI detect should enable SUPPORT_AI_DETECT
-#define SUPPORT_AI_DETECT 1
-#if SUPPORT_AI_DETECT
-#include "tuya_ipc_ai_detect_storage.h"
-#endif
 
 //According to different chip platforms, users need to implement whether there is motion alarm in the current frame.
 static int fake_md_status = 0;
@@ -37,13 +32,11 @@ static int get_motion_status()
     //return 0;
 }
 
-#if SUPPORT_AI_DETECT
 //According to different chip platforms, users need to implement the interface of capture.
 VOID tuya_ipc_get_snapshot_cb(char* pjbuf,  int* size)
 {
     IPC_APP_get_snapshot(pjbuf,size);
 }
-#endif
 
 VOID *thread_md_proc(VOID *arg)
 {
@@ -130,17 +123,5 @@ OPERATE_RET TUYA_APP_Enable_Motion_Detect()
     return OPRT_OK;
 }
 
-#if SUPPORT_AI_DETECT
 
-OPERATE_RET TUYA_APP_Enable_AI_Detect()
-{
-    IPC_MEDIA_INFO_S* p_media_info = IPC_APP_Get_Media_Info();
-    if(p_media_info == NULL) 
-    {
-        return OPRT_COM_ERROR;
-    }    
-    tuya_ipc_ai_detect_storage_init(p_media_info);
 
-    return OPRT_OK;
-}
-#endif
