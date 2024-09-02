@@ -71,8 +71,14 @@ STATIC VOID __TUYA_APP_ss_pb_get_video_cb(IN UINT_T pb_idx, IN CONST MEDIA_FRAME
 {
     TRANSFER_VIDEO_FRAME_S video_frame = {0};
     __TUYA_APP_media_frame_TO_trans_video(p_frame, &video_frame);
-    tuya_ipc_playback_send_video_frame(pb_idx, &video_frame);
-
+    OPERATE_RET ret = OPRT_OK;
+    do {
+        if(ret != OPRT_OK) {
+            usleep(10*1000);
+        }
+        ret = tuya_ipc_playback_send_video_frame(pb_idx, &video_frame);
+    } while(ret == OPRT_RESOURCE_NOT_READY);
+	
     return;
 }
 
@@ -80,8 +86,15 @@ STATIC VOID __TUYA_APP_ss_pb_get_audio_cb(IN UINT_T pb_idx, IN CONST MEDIA_FRAME
 {
     TRANSFER_AUDIO_FRAME_S audio_frame = {0};
     __TUYA_APP_media_frame_TO_trans_audio(p_frame, &audio_frame);
-    tuya_ipc_playback_send_audio_frame(pb_idx, &audio_frame);
-
+	
+    OPERATE_RET ret = OPRT_OK;
+    do {
+        if(ret != OPRT_OK) {
+            usleep(10*1000);
+        }
+        ret = tuya_ipc_playback_send_audio_frame(pb_idx, &audio_frame);;
+    } while(ret == OPRT_RESOURCE_NOT_READY);	
+    
     return;
 }
 
